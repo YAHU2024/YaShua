@@ -1,0 +1,9 @@
+{
+  "name": "importQuestions",
+  "version": "1.0.0",
+  "description": "题目导入云函数",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}

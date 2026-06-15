@@ -1,0 +1,69 @@
+{
+  "pages": [
+    {
+      "path": "pages/index/index",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "智慧刷题"
+      }
+    },
+    {
+      "path": "pages/library/index",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "题库管理"
+      }
+    },
+    {
+      "path": "pages/quiz/index",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "刷题"
+      }
+    },
+    {
+      "path": "pages/wrong/index",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "错题本"
+      }
+    },
+    {
+      "path": "pages/settings/index",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "设置"
+      }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "white",
+    "navigationBarTitleText": "智慧刷题",
+    "navigationBarBackgroundColor": "#667eea",
+    "backgroundColor": "#f5f7fa"
+  },
+  "tabBar": {
+    "color": "#999999",
+    "selectedColor": "#667eea",
+    "borderStyle": "black",
+    "backgroundColor": "#ffffff",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "首页"
+      },
+      {
+        "pagePath": "pages/library/index",
+        "text": "题库"
+      },
+      {
+        "pagePath": "pages/wrong/index",
+        "text": "错题"
+      },
+      {
+        "pagePath": "pages/settings/index",
+        "text": "设置"
+      }
+    ]
+  }
+}
