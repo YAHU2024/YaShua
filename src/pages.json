@@ -50,19 +50,27 @@
     "list": [
       {
         "pagePath": "pages/index/index",
-        "text": "首页"
+        "text": "首页",
+        "iconPath": "static/tab-home.png",
+        "selectedIconPath": "static/tab-home-active.png"
       },
       {
         "pagePath": "pages/library/index",
-        "text": "题库"
+        "text": "题库",
+        "iconPath": "static/tab-library.png",
+        "selectedIconPath": "static/tab-library-active.png"
       },
       {
         "pagePath": "pages/wrong/index",
-        "text": "错题"
+        "text": "错题",
+        "iconPath": "static/tab-wrong.png",
+        "selectedIconPath": "static/tab-wrong-active.png"
       },
       {
         "pagePath": "pages/settings/index",
-        "text": "设置"
+        "text": "设置",
+        "iconPath": "static/tab-settings.png",
+        "selectedIconPath": "static/tab-settings-active.png"
       }
     ]
   }
