@@ -1,0 +1,86 @@
+classDiagram
+    class IStorageAdapter {
+        <<interface>>
+        +getCollection(name: string) ICollectionRef
+        +callFunction(name: string, data: Record~string,any~) Promise~any~
+        +getOpenid() string | null
+        +isCloudAvailable() boolean
+    }
+
+    class CloudAdapter {
+        -db: Database
+        +getCollection(name: string) ICollectionRef
+        +callFunction(name: string, data: Record~string,any~) Promise~any~
+        +getOpenid() string | null
+        +isCloudAvailable() boolean
+    }
+
+    class LocalAdapter {
+        -prefix: string
+        +getCollection(name: string) ICollectionRef
+        +callFunction(name: string, data: Record~string,any~) Promise~any~
+        +getOpenid() string | null
+        +isCloudAvailable() boolean
+        -_getAll(name: string) any[]
+        -_saveAll(name: string, data: any[]) void
+    }
+
+    class ICollectionRef {
+        <<interface>>
+        +get() Promise~QueryResult~
+        +add(data: any) Promise~AddResult~
+        +doc(id: string) IDocRef
+        +where(condition: any) IFilteredRef
+    }
+
+    class IDocRef {
+        <<interface>>
+        +get() Promise~QueryResult~
+        +update(data: any) Promise~UpdateResult~
+        +remove() Promise~RemoveResult~
+    }
+
+    class IFilteredRef {
+        <<interface>>
+        +get() Promise~QueryResult~
+        +remove() Promise~RemoveResult~
+    }
+
+    class FilePicker {
+        <<static>>
+        +chooseFile(options: FilePickerOptions) Promise~FilePickerResult~
+        +readFileContent(filePath: string) Promise~string~
+        -_chooseForWeChat(options: FilePickerOptions) Promise~FilePickerResult~
+        -_chooseForH5(options: FilePickerOptions) Promise~FilePickerResult~
+        -_chooseForApp(options: FilePickerOptions) Promise~FilePickerResult~
+    }
+
+    class DailyStats {
+        <<type>>
+        +date: string
+        +totalQuestions: number
+        +correctCount: number
+        +duration: number
+    }
+
+    class LibraryMastery {
+        <<type>>
+        +libraryId: string
+        +libraryName: string
+        +totalQuestions: number
+        +correctCount: number
+        +accuracy: number
+    }
+
+    class QuizCountOption {
+        <<type>>
+        +label: string
+        +value: number
+        +isAll: boolean
+    }
+
+    IStorageAdapter <|.. CloudAdapter : implements
+    IStorageAdapter <|.. LocalAdapter : implements
+    IStorageAdapter --> ICollectionRef : creates
+    ICollectionRef --> IDocRef : returns
+    ICollectionRef --> IFilteredRef : returns

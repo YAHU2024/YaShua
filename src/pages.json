@@ -34,6 +34,13 @@
         "navigationStyle": "custom",
         "navigationBarTitleText": "设置"
       }
+    },
+    {
+      "path": "pages/statistics/index",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "学习统计"
+      }
     }
   ],
   "globalStyle": {

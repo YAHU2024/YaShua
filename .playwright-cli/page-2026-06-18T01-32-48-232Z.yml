@@ -1,0 +1,13 @@
+- generic [ref=e7]:
+  - generic [ref=e10] [cursor=pointer]:
+    - img [ref=e12]
+    - generic [ref=e13]: 首页
+  - generic [ref=e15] [cursor=pointer]:
+    - img [ref=e17]
+    - generic [ref=e18]: 题库
+  - generic [ref=e20] [cursor=pointer]:
+    - img [ref=e22]
+    - generic [ref=e23]: 错题
+  - generic [ref=e25] [cursor=pointer]:
+    - img [ref=e27]
+    - generic [ref=e28]: 设置

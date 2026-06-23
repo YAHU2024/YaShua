@@ -1,3 +1,4 @@
+// @ts-nocheck -- uni.cloud 由云开发SDK在运行时注入，类型声明文件不完整
 export async function callFunction(name: string, data?: Record<string, any>): Promise<any> {
   return new Promise((resolve, reject) => {
     uni.cloud.callFunction({

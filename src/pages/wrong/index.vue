@@ -55,13 +55,15 @@ const userStore = useUserStore()
 const wrongList = ref<(WrongQuestion & { question: Question })[]>([])
 
 onMounted(async () => {
-  if (userStore.openid) {
+  const userId = userStore.getUserId()
+  if (userId) {
     await loadWrongQuestions()
   }
 })
 
 async function loadWrongQuestions() {
-  wrongList.value = await wrongStore.getWrongQuestionDetails(userStore.openid!)
+  const userId = userStore.getUserId()
+  wrongList.value = await wrongStore.getWrongQuestionDetails(userId)
 }
 
 function truncate(text: string, length: number): string {
@@ -90,12 +92,13 @@ function startAllReview() {
 }
 
 async function clearAll() {
+  const userId = userStore.getUserId()
   uni.showModal({
     title: '确认清空',
     content: '确定要清空所有错题吗？此操作不可恢复。',
     success: async (res) => {
-      if (res.confirm && userStore.openid) {
-        const result = await wrongStore.clearAllWrongQuestions(userStore.openid)
+      if (res.confirm && userId) {
+        const result = await wrongStore.clearAllWrongQuestions(userId)
         if (result) {
           wrongList.value = []
           uni.showToast({ title: '清空成功', icon: 'success' })

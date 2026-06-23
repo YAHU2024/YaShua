@@ -67,25 +67,38 @@
           <view v-if="!editingLibrary" class="form-item">
             <text class="form-label">导入题目</text>
             <view class="import-section">
+              <!-- Tab 切换 -->
               <view class="import-tabs">
-                <text
-                  class="tab-item"
-                  :class="{ active: importMode === 'markdown' }"
-                  @click="importMode = 'markdown'"
-                >Markdown</text>
-                <text
-                  class="tab-item"
-                  :class="{ active: importMode === 'ai' }"
-                  @click="importMode = 'ai'"
-                >AI 解析</text>
+                <text class="tab-item" :class="{ active: importMode === 'markdown' }" @click="switchImportMode('markdown')">Markdown</text>
+                <text class="tab-item" :class="{ active: importMode === 'json' }" @click="switchImportMode('json')">JSON</text>
+                <text class="tab-item" :class="{ active: importMode === 'file' }" @click="switchImportMode('file')">文件</text>
               </view>
-              <textarea
-                class="import-textarea"
-                v-model="formData.markdownContent"
-                placeholder="请输入 Markdown 格式的题目内容...&#10;&#10;示例：&#10;1. 题目内容？&#10;A. 选项A&#10;B. 选项B&#10;答案：A&#10;解析：解析内容"
+              
+              <!-- Markdown 输入 -->
+              <textarea v-if="importMode === 'markdown'"
+                class="import-textarea" v-model="formData.markdownContent"
+                placeholder="请输入 Markdown 格式的题目内容..."
+                maxlength="50000"
               />
-              <view v-if="parsedQuestions.length > 0" class="parse-preview">
-                <text class="preview-title">解析结果：{{ parsedQuestions.length }} 道题</text>
+              
+              <!-- JSON 输入 -->
+              <textarea v-if="importMode === 'json'"
+                class="import-textarea" v-model="formData.markdownContent"
+                :placeholder="jsonPlaceholder"
+                maxlength="50000"
+              />
+              
+              <!-- 文件选择 -->
+              <view v-if="importMode === 'file'" class="file-picker">
+                <button class="file-btn" @click="chooseFile">选择文件（.txt / .md）</button>
+                <text v-if="selectedFileName" class="file-name">{{ selectedFileName }}</text>
+                <text v-if="fileError" class="file-error">{{ fileError }}</text>
+              </view>
+              
+              <!-- 解析预览 -->
+              <view v-if="parsedQuestions.length > 0 || parseError" class="parse-preview">
+                <text v-if="parsedQuestions.length > 0" class="preview-title">解析结果：{{ parsedQuestions.length }} 道题</text>
+                <text v-if="parseError" class="preview-error">{{ parseError }}</text>
               </view>
             </view>
           </view>
@@ -104,7 +117,7 @@ import { ref, computed, watch } from 'vue'
 import NavBar from '@/components/NavBar.vue'
 import { useLibraryStore } from '@/stores/library'
 import { useUserStore } from '@/stores/user'
-import { parseMarkdown } from '@/utils/parser'
+import { parseMarkdown, parseJSON } from '@/utils/parser'
 import type { Library, Question } from '@/types'
 
 const libraryStore = useLibraryStore()
@@ -112,7 +125,7 @@ const userStore = useUserStore()
 
 const showAddModal = ref(false)
 const editingLibrary = ref<Library | null>(null)
-const importMode = ref<'markdown' | 'ai'>('markdown')
+const importMode = ref<'markdown' | 'json' | 'file'>('markdown')
 
 const formData = ref({
   name: '',
@@ -120,11 +133,32 @@ const formData = ref({
   markdownContent: ''
 })
 
+const selectedFileName = ref('')
+const fileError = ref('')
+const parseError = ref('')
+
+const jsonPlaceholder = `请输入 JSON 格式的题目数组...
+
+示例：
+[
+  {
+    "type": "single",
+    "question": "以下哪个是中国的首都？",
+    "options": ["A. 上海", "B. 北京", "C. 广州"],
+    "answer": "B",
+    "explanation": "北京是中国的首都"
+  }
+]`
+
 const libraries = computed(() => libraryStore.libraries)
 
 const parsedQuestions = computed<Question[]>(() => {
   if (!formData.value.markdownContent) return []
   try {
+    if (importMode.value === 'json') {
+      const result = parseJSON(formData.value.markdownContent)
+      return result.success ? result.questions : []
+    }
     return parseMarkdown(formData.value.markdownContent)
   } catch {
     return []
@@ -184,12 +218,142 @@ function closeModal() {
   showAddModal.value = false
 }
 
+function switchImportMode(mode: 'markdown' | 'json' | 'file') {
+  importMode.value = mode
+  formData.value.markdownContent = ''
+  selectedFileName.value = ''
+  fileError.value = ''
+  parseError.value = ''
+}
+
+function chooseFile() {
+  fileError.value = ''
+  parseError.value = ''
+  
+  // #ifdef APP-PLUS
+  uni.chooseFile({
+    count: 1,
+    // @ts-ignore -- uni.chooseFile 在部分平台支持 type='file'
+    type: 'file',
+    extension: ['.txt', '.md'],
+    success: (res) => {
+      const file = (res.tempFiles as any[])[0]
+      selectedFileName.value = file.name
+      readFileContent(file.path)
+    },
+    fail: (err) => {
+      if (err.errMsg && !err.errMsg.includes('cancel')) {
+        fileError.value = '选择文件失败'
+      }
+    }
+  })
+  // #endif
+
+  // #ifdef MP-WEIXIN
+  // uni.chooseFile 在微信小程序中不可用，改用 wx.chooseMessageFile
+  wx.chooseMessageFile({
+    count: 1,
+    type: 'file',
+    success: (res) => {
+      const file = res.tempFiles[0]
+      selectedFileName.value = file.name
+      readFileContent(file.path)
+    },
+    fail: (err) => {
+      if (err.errMsg && !err.errMsg.includes('cancel')) {
+        fileError.value = '选择文件失败'
+      }
+    }
+  })
+  // #endif
+  
+  // #ifdef H5
+  readH5File()
+  // #endif
+}
+
+function readFileContent(filePath: string) {
+  // #ifdef APP-PLUS
+  plus.io.resolveLocalFileSystemURL(filePath, (entry: any) => {
+    entry.file((file: any) => {
+      const reader = new plus.io.FileReader()
+      reader.onloadend = (e: any) => {
+        formData.value.markdownContent = e.target.result
+        selectedFileName.value = entry.name
+        parseImportedContent()
+      }
+      reader.readAsText(file, 'utf-8')
+    })
+  }, () => {
+    fileError.value = '读取文件失败'
+  })
+  // #endif
+  
+  // #ifdef MP-WEIXIN
+  // @ts-ignore -- wx 由微信小程序运行时提供
+  const fs = wx.getFileSystemManager()
+  try {
+    const content = fs.readFileSync(filePath, 'utf-8')
+    formData.value.markdownContent = content as string
+    parseImportedContent()
+  } catch {
+    fileError.value = '读取文件失败'
+  }
+  // #endif
+}
+
+function readH5File() {
+  // 创建隐藏的 file input
+  const input = document.createElement('input')
+  input.type = 'file'
+  input.accept = '.txt,.md,.json'
+  input.onchange = (e: any) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.size > 10 * 1024 * 1024) {
+      fileError.value = '文件大小不能超过 10MB'
+      return
+    }
+    selectedFileName.value = file.name
+    const reader = new FileReader()
+    reader.onload = (re: any) => {
+      formData.value.markdownContent = re.target.result as string
+      parseImportedContent()
+    }
+    reader.readAsText(file, 'utf-8')
+  }
+  input.click()
+}
+
+function parseImportedContent() {
+  parseError.value = ''
+  const content = formData.value.markdownContent
+  if (!content.trim()) {
+    parseError.value = '文件内容为空'
+    return
+  }
+  
+  if (importMode.value === 'json') {
+    const result = parseJSON(content)
+    if (!result.success) {
+      parseError.value = result.error || '解析失败'
+    }
+  }
+  // markdown 模式由 computed parsedQuestions 自动处理
+}
+
+/**
+ * BUG-04: 修复 saveLibrary 中关闭弹窗逻辑缺陷。
+ * 使用 try/finally 确保创建新题库后无论如何都关闭弹窗。
+ * 编辑逻辑不受影响，编辑有自己的 closeModal 调用。
+ */
 async function saveLibrary() {
   if (!formData.value.name.trim()) {
     uni.showToast({ title: '请输入题库名称', icon: 'none' })
     return
   }
 
+  // 编辑模式：保持原有逻辑，编辑完成后在成功路径中自行关闭
   if (editingLibrary.value) {
     const result = await libraryStore.updateLibrary(
       editingLibrary.value._id,
@@ -202,31 +366,46 @@ async function saveLibrary() {
     } else {
       uni.showToast({ title: '更新失败', icon: 'none' })
     }
-  } else {
+    return
+  }
+
+  // 新建模式：使用 try/finally 确保 closeModal 一定被调用
+  try {
     const libraryId = await libraryStore.createLibrary(
       formData.value.name,
       formData.value.description
     )
     
     if (libraryId && formData.value.markdownContent.trim()) {
-      if (userStore.openid) {
-        const questions = parseMarkdown(formData.value.markdownContent)
+      const userId = userStore.getUserId()
+      if (userId) {
+        let questions: Question[] = []
+        if (importMode.value === 'json') {
+          const result = parseJSON(formData.value.markdownContent)
+          questions = result.questions
+        } else {
+          questions = parseMarkdown(formData.value.markdownContent)
+        }
         if (questions.length > 0) {
-          const result = await libraryStore.importQuestions(libraryId, questions, userStore.openid)
+          const result = await libraryStore.importQuestions(libraryId, questions, userId)
           if (result.success) {
             uni.showToast({ title: `创建成功，导入 ${result.data.importedCount} 道题`, icon: 'success' })
           } else {
             uni.showToast({ title: result.message || '导入失败', icon: 'none' })
           }
+        } else {
+          uni.showToast({ title: '创建成功，但未解析到有效题目', icon: 'none' })
         }
+      } else {
+        uni.showToast({ title: '创建成功', icon: 'success' })
       }
-      closeModal()
     } else if (libraryId) {
       uni.showToast({ title: '创建成功', icon: 'success' })
-      closeModal()
     } else {
       uni.showToast({ title: '创建失败', icon: 'none' })
     }
+  } finally {
+    closeModal()
   }
 }
 </script>
@@ -517,5 +696,42 @@ async function saveLibrary() {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: #fff;
   }
+}
+
+.file-picker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px 0;
+}
+
+.file-btn {
+  width: 100%;
+  height: 48px;
+  background: #f0f5ff;
+  border-radius: 12px;
+  border: 1px dashed #667eea;
+  color: #667eea;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.file-name {
+  margin-top: 12px;
+  font-size: 13px;
+  color: #52c41a;
+}
+
+.file-error {
+  margin-top: 12px;
+  font-size: 13px;
+  color: #ff4d4f;
+}
+
+.preview-error {
+  font-size: 13px;
+  color: #ff4d4f;
 }
 </style>

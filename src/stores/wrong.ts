@@ -1,15 +1,15 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import type { WrongQuestion, Question } from '@/types'
+import { storageAdapter } from '@/adapters/storageAdapter'
 
 export const useWrongStore = defineStore('wrong', () => {
   const wrongQuestions = ref<WrongQuestion[]>([])
 
-  async function loadWrongQuestions(openid: string) {
+  async function loadWrongQuestions(userId: string) {
     try {
-      const db = uni.cloud.database()
-      const result = await db.collection('wrongQuestions')
-        .where({ openid })
+      const result = await storageAdapter.getCollection('wrongQuestions')
+        .where({ openid: userId })
         .get()
       wrongQuestions.value = result.data as WrongQuestion[]
     } catch (e) {
@@ -17,14 +17,14 @@ export const useWrongStore = defineStore('wrong', () => {
     }
   }
 
-  async function getWrongQuestionDetails(openid: string): Promise<(WrongQuestion & { question: Question })[]> {
+  async function getWrongQuestionDetails(userId: string): Promise<(WrongQuestion & { question: Question })[]> {
     try {
-      await loadWrongQuestions(openid)
-      const db = uni.cloud.database()
-      const result = []
-      
+      await loadWrongQuestions(userId)
+      const questionsCollection = storageAdapter.getCollection('questions')
+      const result: (WrongQuestion & { question: Question })[] = []
+
       for (const wrong of wrongQuestions.value) {
-        const questionResult = await db.collection('questions')
+        const questionResult = await questionsCollection
           .doc(wrong.questionId)
           .get()
         if (questionResult.data.length > 0) {
@@ -43,8 +43,7 @@ export const useWrongStore = defineStore('wrong', () => {
 
   async function deleteWrongQuestion(id: string) {
     try {
-      const db = uni.cloud.database()
-      await db.collection('wrongQuestions').doc(id).remove()
+      await storageAdapter.getCollection('wrongQuestions').doc(id).remove()
       wrongQuestions.value = wrongQuestions.value.filter(w => w._id !== id)
       return true
     } catch (e) {
@@ -53,10 +52,9 @@ export const useWrongStore = defineStore('wrong', () => {
     }
   }
 
-  async function clearAllWrongQuestions(openid: string) {
+  async function clearAllWrongQuestions(userId: string) {
     try {
-      const db = uni.cloud.database()
-      await db.collection('wrongQuestions').where({ openid }).remove()
+      await storageAdapter.getCollection('wrongQuestions').where({ openid: userId }).remove()
       wrongQuestions.value = []
       return true
     } catch (e) {

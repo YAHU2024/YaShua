@@ -53,6 +53,8 @@
     "@dcloudio/uni-mp-weixin": "3.0.0-4080420251103001",
     "@dcloudio/uni-mp-xhs": "3.0.0-4080420251103001",
     "@dcloudio/uni-quickapp-webview": "3.0.0-4080420251103001",
+    "@playwright/cli": "^0.1.14",
+    "agent-browser": "^0.27.0",
     "nutui-uniapp": "^1.11.2",
     "pinia": "^3.0.4",
     "vue": "^3.4.21",

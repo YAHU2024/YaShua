@@ -1,0 +1,26 @@
+- generic [ref=e3]:
+  - generic [ref=e7]:
+    - generic [ref=e10]:
+      - generic [ref=e12]: ←
+      - generic [ref=e13]: 题库管理
+    - generic [ref=e15]:
+      - generic [ref=e16]:
+        - generic [ref=e17]: +
+        - generic [ref=e18]: 添加题库
+      - generic [ref=e19]:
+        - generic [ref=e20]: 📚
+        - generic [ref=e21]: 暂无题库
+        - generic [ref=e22]: 点击上方按钮添加题库
+  - generic [ref=e24]:
+    - generic [ref=e27] [cursor=pointer]:
+      - img [ref=e29]
+      - generic [ref=e30]: 首页
+    - generic [ref=e32] [cursor=pointer]:
+      - img [ref=e34]
+      - generic [ref=e35]: 题库
+    - generic [ref=e37] [cursor=pointer]:
+      - img [ref=e39]
+      - generic [ref=e40]: 错题
+    - generic [ref=e42] [cursor=pointer]:
+      - img [ref=e44]
+      - generic [ref=e45]: 设置

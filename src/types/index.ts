@@ -3,7 +3,7 @@ export interface Question {
   libraryId: string
   type: 'single' | 'multiple' | 'judge'
   content: string
-  options: string[]
+  options?: string[]
   answer: string[]
   analysis?: string
   difficulty: number
@@ -84,4 +84,45 @@ export interface StatsState {
   correctCount: number
   todayQuestions: number
   todayCorrect: number
+}
+
+export interface DailyStats {
+  date: string
+  totalQuestions: number
+  correctCount: number
+  duration: number
+}
+
+export interface LibraryMastery {
+  libraryId: string
+  libraryName: string
+  totalQuestions: number
+  correctCount: number
+  accuracy: number
+}
+
+export interface QuizCountOption {
+  label: string
+  value: number
+  isAll: boolean
+}
+
+export interface FilePickerOptions {
+  extensions: string[]
+  maxFileSize: number
+}
+
+export interface FilePickerResult {
+  path: string
+  name: string
+  size: number
+  content: string
+}
+
+export interface JSONQuestion {
+  type: 'single' | 'multiple' | 'judge'
+  question: string
+  options?: string[]
+  answer: string | string[]
+  explanation?: string
 }

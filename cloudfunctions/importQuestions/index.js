@@ -10,7 +10,7 @@ const MAX_BATCH_SIZE = 50
 async function checkContentSafety(content) {
   try {
     const result = await cloud.openapi.security.msgSecCheck({
-      content: content.substring(0, 2000)
+      content: content.substring(0, 10000)
     })
     return result.result === 0
   } catch (e) {
@@ -42,8 +42,9 @@ async function batchInsertQuestions(questions, libraryId) {
     importedCount += results.filter(r => r._id).length
   }
   
+  // BUG-01: 修复变量作用域错误 — 使用 importedCount 替代 batch.length
   await db.collection('libraries').doc(libraryId).update({
-    totalQuestions: db.command.inc(batch.length),
+    totalQuestions: db.command.inc(importedCount),
     updatedAt: new Date()
   })
   

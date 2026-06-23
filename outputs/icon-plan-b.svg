@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <clipPath id="rnd">
+      <rect x="0" y="0" width="1024" height="1024" rx="180" ry="180"/>
+    </clipPath>
+  </defs>
+
+  <!-- Background -->
+  <rect x="0" y="0" width="1024" height="1024" rx="180" ry="180" fill="#F8FAFC"/>
+
+  <g clip-path="url(#rnd)">
+
+    <!-- ===== PEN NIB ===== -->
+    <!-- Left nib wing -->
+    <path d="M460,260 C460,260 340,320 310,440 C300,480 340,510 380,540 L460,540 Z"
+          fill="#3B7DD8"/>
+    <!-- Right nib wing -->
+    <path d="M460,260 C460,260 580,320 610,440 C620,480 580,510 540,540 L460,540 Z"
+          fill="#2B5FAC"/>
+
+    <!-- Nib center slit -->
+    <line x1="460" y1="300" x2="460" y2="600" stroke="#1A3A6A" stroke-width="8" stroke-linecap="round"/>
+
+    <!-- Nib tip circle (ink well) -->
+    <ellipse cx="460" cy="520" rx="20" ry="28" fill="#1A3A6A"/>
+
+    <!-- ===== CHECKMARK ===== -->
+    <!-- Bold checkmark flowing from nib tip -->
+    <path d="M420,540 L540,680 L750,470"
+          fill="none"
+          stroke="#FF7A3D"
+          stroke-width="60"
+          stroke-linecap="round"
+          stroke-linejoin="round"/>
+
+    <!-- Blue to orange transition accent on checkmark -->
+    <path d="M420,540 L540,680 L750,470"
+          fill="none"
+          stroke="#3B7DD8"
+          stroke-width="24"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-dasharray="300 500"/>
+
+    <!-- ===== DECORATIVE DOTS ===== -->
+    <circle cx="280" cy="700" r="14" fill="#3B7DD8" opacity="0.15"/>
+    <circle cx="230" cy="750" r="10" fill="#2B5FAC" opacity="0.12"/>
+    <circle cx="310" cy="770" r="8" fill="#FF7A3D" opacity="0.12"/>
+
+  </g>
+</svg>

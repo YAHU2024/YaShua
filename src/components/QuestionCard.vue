@@ -64,7 +64,8 @@ const options = computed(() => {
   if (props.question.type === 'judge') {
     return ['正确', '错误']
   }
-  return props.question.options
+  // options 已改为可选，需要空值保护
+  return props.question.options || []
 })
 
 function getOptionMarker(index: number): string {

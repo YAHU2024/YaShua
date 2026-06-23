@@ -107,12 +107,14 @@ import { useQuizStore } from '@/stores/quiz'
 import { useLibraryStore } from '@/stores/library'
 import { useWrongStore } from '@/stores/wrong'
 import { useUserStore } from '@/stores/user'
+import { useStatsStore } from '@/stores/stats'
 import type { Question } from '@/types'
 
 const quizStore = useQuizStore()
 const libraryStore = useLibraryStore()
 const wrongStore = useWrongStore()
 const userStore = useUserStore()
+const statsStore = useStatsStore()
 
 const isLoading = ref(true)
 const showResult = ref(false)
@@ -121,6 +123,7 @@ const scoreResult = ref({ correct: 0, total: 0 })
 
 const mode = ref<'sequence' | 'random' | 'wrong'>('sequence')
 const libraryId = ref('')
+const targetQuestionId = ref('')
 
 const modeTitle = computed(() => {
   const titles: Record<string, string> = {
@@ -142,8 +145,8 @@ const currentAnswers = computed(() => {
 
 const isCorrect = computed(() => {
   if (!currentQuestion.value || !showResult.value) return false
-  const correctAnswer = currentQuestion.value.answer.sort()
-  const userAnswer = currentAnswers.value.sort()
+  const correctAnswer = [...currentQuestion.value.answer].sort()
+  const userAnswer = [...currentAnswers.value].sort()
   return arraysEqual(correctAnswer, userAnswer)
 })
 
@@ -204,8 +207,17 @@ function nextQuestion() {
 async function submitQuiz() {
   scoreResult.value = quizStore.calculateScore()
   
-  if (userStore.openid) {
-    await quizStore.saveResults(userStore.openid)
+  const userId = userStore.getUserId()
+  if (userId) {
+    await quizStore.saveResults(userId)
+    // BUG-08: 答题完成后刷新 stats store 并记录每日统计
+    await statsStore.loadStats(userId)
+    await statsStore.recordDailyStat({
+      date: new Date().toISOString().split('T')[0],
+      totalQuestions: scoreResult.value.total,
+      correctCount: scoreResult.value.correct,
+      duration: Date.now() - quizStore.startTime
+    })
   }
   
   quizStore.finishQuiz()
@@ -217,11 +229,6 @@ function closeScore() {
   uni.navigateBack()
 }
 
-function closeScoreAndGoHome() {
-  showScore.value = false
-  uni.switchTab({ url: '/pages/index/index' })
-}
-
 onMounted(async () => {
   try {
     const pages = getCurrentPages()
@@ -230,17 +237,32 @@ onMounted(async () => {
     
     mode.value = (options.mode as 'sequence' | 'random' | 'wrong') || 'sequence'
     libraryId.value = options.libraryId || ''
+    targetQuestionId.value = options.questionId || ''
+    const quizCount = parseInt(options.count) || 0
+    
+    const userId = userStore.getUserId()
     
     if (mode.value === 'wrong') {
-      if (!userStore.openid) {
+      if (!userId) {
         await userStore.doLogin()
       }
-      const wrongDetails = await wrongStore.getWrongQuestionDetails(userStore.openid!)
-      const questions = wrongDetails.map(w => w.question)
-      quizStore.initQuiz(questions, 'wrong')
+      const uid = userStore.getUserId()
+      const wrongDetails = await wrongStore.getWrongQuestionDetails(uid)
+      const questionsList = wrongDetails.map(w => w.question)
+      quizStore.initQuiz(questionsList, 'wrong', quizCount)
     } else if (libraryId.value) {
-      const questions = await libraryStore.getQuestions(libraryId.value)
-      quizStore.initQuiz(questions, mode.value)
+      const questionsList = await libraryStore.getQuestions(libraryId.value)
+      quizStore.initQuiz(questionsList, mode.value, quizCount)
+    }
+    
+    // BUG-05: 处理 questionId 参数，从错题本跳转到指定题目
+    if (targetQuestionId.value && quizStore.questions.length > 0) {
+      const idx = quizStore.questions.findIndex(
+        q => q._id === targetQuestionId.value
+      )
+      if (idx !== -1) {
+        quizStore.goToQuestion(idx)
+      }
     }
     
     isLoading.value = false

@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import type { Library, Question } from '@/types'
-import { callFunction } from '@/utils/cloud'
+import { storageAdapter } from '@/adapters/storageAdapter'
 
 export const useLibraryStore = defineStore('library', () => {
   const libraries = ref<Library[]>([])
@@ -9,8 +9,7 @@ export const useLibraryStore = defineStore('library', () => {
 
   async function loadLibraries() {
     try {
-      const db = uni.cloud.database()
-      const result = await db.collection('libraries').get()
+      const result = await storageAdapter.getCollection('libraries').get()
       libraries.value = result.data as Library[]
     } catch (e) {
       console.error('加载题库失败', e)
@@ -19,8 +18,7 @@ export const useLibraryStore = defineStore('library', () => {
 
   async function createLibrary(name: string, description?: string) {
     try {
-      const db = uni.cloud.database()
-      const result = await db.collection('libraries').add({
+      const result = await storageAdapter.getCollection('libraries').add({
         name,
         description: description || '',
         totalQuestions: 0,
@@ -37,8 +35,7 @@ export const useLibraryStore = defineStore('library', () => {
 
   async function updateLibrary(id: string, name: string, description?: string) {
     try {
-      const db = uni.cloud.database()
-      await db.collection('libraries').doc(id).update({
+      await storageAdapter.getCollection('libraries').doc(id).update({
         name,
         description: description || '',
         updatedAt: new Date()
@@ -53,9 +50,8 @@ export const useLibraryStore = defineStore('library', () => {
 
   async function deleteLibrary(id: string) {
     try {
-      const db = uni.cloud.database()
-      await db.collection('libraries').doc(id).remove()
-      await db.collection('questions').where({ libraryId: id }).remove()
+      await storageAdapter.getCollection('libraries').doc(id).remove()
+      await storageAdapter.getCollection('questions').where({ libraryId: id }).remove()
       await loadLibraries()
       return true
     } catch (e) {
@@ -66,7 +62,7 @@ export const useLibraryStore = defineStore('library', () => {
 
   async function importQuestions(libraryId: string, questions: Question[], openid: string) {
     try {
-      const result = await callFunction('importQuestions', {
+      const result = await storageAdapter.callFunction('importQuestions', {
         libraryId,
         questions,
         openid
@@ -83,8 +79,7 @@ export const useLibraryStore = defineStore('library', () => {
 
   async function getQuestions(libraryId: string): Promise<Question[]> {
     try {
-      const db = uni.cloud.database()
-      const result = await db.collection('questions').where({ libraryId }).get()
+      const result = await storageAdapter.getCollection('questions').where({ libraryId }).get()
       return result.data as Question[]
     } catch (e) {
       console.error('获取题目失败', e)

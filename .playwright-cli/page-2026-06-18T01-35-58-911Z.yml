@@ -1,0 +1,39 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e7]:
+      - generic [ref=e10]:
+        - generic [ref=e12]: ←
+        - generic [ref=e13]: 题库管理
+      - generic [ref=e15]:
+        - generic [ref=e16]:
+          - generic [ref=e17]: +
+          - generic [ref=e18]: 添加题库
+        - generic [ref=e81]:
+          - generic [ref=e82]:
+            - generic [ref=e83]: 测试题库
+            - generic [ref=e84]: 暂无描述
+            - generic [ref=e85]:
+              - generic [ref=e86]: 5 道题
+              - generic [ref=e87]: ·
+              - generic [ref=e88]: 2026-06-18
+          - generic [ref=e89]:
+            - generic [ref=e91]: 编辑
+            - generic [ref=e93]: 删除
+    - generic [ref=e24]:
+      - generic [ref=e27] [cursor=pointer]:
+        - img [ref=e29]
+        - generic [ref=e30]: 首页
+      - generic [ref=e32] [cursor=pointer]:
+        - img [ref=e34]
+        - generic [ref=e35]: 题库
+      - generic [ref=e37] [cursor=pointer]:
+        - img [ref=e39]
+        - generic [ref=e40]: 错题
+      - generic [ref=e42] [cursor=pointer]:
+        - img [ref=e44]
+        - generic [ref=e45]: 设置
+  - generic:
+    - generic:
+      - generic:
+        - img
+        - paragraph: 创建成功，导入 5 道题

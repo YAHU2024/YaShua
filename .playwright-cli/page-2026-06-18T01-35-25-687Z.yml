@@ -1,0 +1,54 @@
+- generic [ref=e3]:
+  - generic [ref=e7]:
+    - generic [ref=e10]:
+      - generic [ref=e12]: ←
+      - generic [ref=e13]: 题库管理
+    - generic [ref=e15]:
+      - generic [ref=e16]:
+        - generic [ref=e17]: +
+        - generic [ref=e18]: 添加题库
+      - generic [ref=e19]:
+        - generic [ref=e20]: 📚
+        - generic [ref=e21]: 暂无题库
+        - generic [ref=e22]: 点击上方按钮添加题库
+    - generic [ref=e48]:
+      - generic [ref=e49]:
+        - generic [ref=e50]: 添加题库
+        - generic [ref=e51]: ×
+      - generic [ref=e52]:
+        - generic [ref=e53]:
+          - generic [ref=e54]: 题库名称
+          - generic [ref=e56]:
+            - generic: 请输入题库名称
+            - textbox [ref=e57]
+        - generic [ref=e58]:
+          - generic [ref=e59]: 题库描述
+          - generic [ref=e61]:
+            - generic [ref=e62]: 请输入题库描述（可选）
+            - textbox [ref=e63]
+        - generic [ref=e64]:
+          - generic [ref=e65]: 导入题目
+          - generic [ref=e66]:
+            - generic [ref=e67]:
+              - generic [ref=e68]: Markdown
+              - generic [ref=e69]: JSON
+              - generic [ref=e70]: 文件
+            - generic [ref=e72]:
+              - generic [ref=e73]: 请输入 Markdown 格式的题目内容...
+              - textbox [ref=e74]
+      - generic [ref=e75]:
+        - generic [ref=e76] [cursor=pointer]: 取消
+        - generic [ref=e77] [cursor=pointer]: 保存
+  - generic [ref=e24]:
+    - generic [ref=e27] [cursor=pointer]:
+      - img [ref=e29]
+      - generic [ref=e30]: 首页
+    - generic [ref=e32] [cursor=pointer]:
+      - img [ref=e34]
+      - generic [ref=e35]: 题库
+    - generic [ref=e37] [cursor=pointer]:
+      - img [ref=e39]
+      - generic [ref=e40]: 错题
+    - generic [ref=e42] [cursor=pointer]:
+      - img [ref=e44]
+      - generic [ref=e45]: 设置

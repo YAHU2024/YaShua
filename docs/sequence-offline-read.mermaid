@@ -1,0 +1,23 @@
+sequenceDiagram
+    participant Page as 页面组件
+    participant Store as Pinia Store
+    participant Adapter as StorageAdapter
+    participant Cloud as CloudAdapter
+    participant Local as LocalAdapter
+    participant LS as localStorage
+
+    Page->>Store: loadLibraries()
+    Store->>Adapter: getCollection('libraries').get()
+    
+    alt 云端可用
+        Adapter->>Cloud: db.collection('libraries').get()
+        Cloud-->>Adapter: result.data
+    else 云端不可用
+        Adapter->>Local: _getAll('libraries')
+        Local->>LS: uni.getStorageSync('local_libraries')
+        LS-->>Local: JSON string
+        Local-->>Adapter: parsed data
+    end
+    
+    Adapter-->>Store: libraries[]
+    Store-->>Page: 更新UI
