@@ -74,6 +74,35 @@
       <button v-if="errorMsg" class="retry-btn" @click="retryLoad">重新加载</button>
     </view>
 
+    <!-- 恢复进度弹窗 -->
+    <view v-if="showResumeDialog" class="resume-overlay" @click="handleCancelResume">
+      <view class="resume-dialog" @click.stop>
+        <text class="resume-dialog-title">发现上次进度</text>
+        <view class="resume-dialog-body">
+          <text class="resume-progress-text">
+            已完成 {{ (savedProgressData?.currentIndex || 0) + 1 }} / {{ savedProgressData?.questions?.length || 0 }} 题
+          </text>
+          <text class="resume-progress-text">
+            {{ Math.round(((savedProgressData?.currentIndex || -1) + 1) / (savedProgressData?.questions?.length || 1) * 100) }}% 完成
+          </text>
+          <view v-if="libraryChanged" class="resume-warning">
+            <text>⚠️ 题库已更新，继续旧进度可能与当前题库不一致，建议重新开始</text>
+          </view>
+        </view>
+        <view class="resume-dialog-actions">
+          <button class="resume-btn primary" @click="handleResume">
+            <text>继续上次进度</text>
+          </button>
+          <button class="resume-btn secondary" @click="handleRestart">
+            <text>重新开始</text>
+          </button>
+          <button class="resume-btn cancel" @click="handleCancelResume">
+            <text>返回</text>
+          </button>
+        </view>
+      </view>
+    </view>
+
     <view v-if="showScore" class="score-modal" @click="closeScore">
       <view class="score-content" @click.stop>
         <view class="score-icon">{{ scoreIcon }}</view>
@@ -109,7 +138,8 @@ import { useLibraryStore } from '@/stores/library'
 import { useWrongStore } from '@/stores/wrong'
 import { useUserStore } from '@/stores/user'
 import { ensureCloudReady } from '@/utils/cloud'
-import type { Question } from '@/types'
+import { getQuizProgress, clearQuizProgress } from '@/utils/storage'
+import type { Question, QuizProgress } from '@/types'
 
 const quizStore = useQuizStore()
 const libraryStore = useLibraryStore()
@@ -121,6 +151,10 @@ const showResult = ref(false)
 const showScore = ref(false)
 const scoreResult = ref({ correct: 0, total: 0 })
 const errorMsg = ref('')
+const showResumeDialog = ref(false)
+const savedProgressData = ref<QuizProgress | null>(null)
+const libraryChanged = ref(false)
+const targetQuestionId = ref('')
 
 const mode = ref<'sequence' | 'random' | 'wrong'>('sequence')
 const libraryId = ref('')
@@ -188,6 +222,15 @@ function confirmAnswer() {
     return
   }
   showResult.value = true
+
+  // 实时错题收集：答错立即记录到错题本
+  if (!isCorrect.value && currentQuestion.value && userStore.openid && libraryId.value) {
+    wrongStore.addWrongQuestion(
+      userStore.openid,
+      currentQuestion.value._id || '',
+      [...currentAnswers.value].sort()
+    )
+  }
 }
 
 function prevQuestion() {
@@ -240,28 +283,22 @@ async function loadQuizData() {
     mode.value = (options.mode as 'sequence' | 'random' | 'wrong') || 'sequence'
     // 解码 URL 参数，处理可能包含特殊字符的 libraryId
     libraryId.value = options.libraryId ? decodeURIComponent(options.libraryId) : ''
+    targetQuestionId.value = options.questionId || ''
 
-    if (mode.value === 'wrong') {
-      if (!userStore.openid) {
-        await userStore.doLogin()
+    // 检测是否有保存的进度（错题模式不支持恢复）
+    if (mode.value !== 'wrong' && libraryId.value) {
+      const saved = getQuizProgress(libraryId.value, mode.value)
+      if (saved && saved.questions && saved.questions.length > 0) {
+        savedProgressData.value = saved
+        // 检测题库是否变更：比较保存的题目 ID 与当前题库
+        showResumeDialog.value = true
+        isLoading.value = false
+        return
       }
-      const wrongDetails = await wrongStore.getWrongQuestionDetails(userStore.openid!)
-      const questions = wrongDetails.map(w => w.question)
-      quizStore.initQuiz(questions, 'wrong')
-    } else if (libraryId.value) {
-      const questions = await libraryStore.getQuestions(libraryId.value)
-      if (questions.length === 0) {
-        // 查看题库信息，判断是否有题目数据但加载失败
-        const lib = libraryStore.libraries.find(l => l._id === libraryId.value)
-        if (lib && lib.totalQuestions > 0) {
-          errorMsg.value = '题目加载失败'
-        }
-      }
-      quizStore.initQuiz(questions, mode.value)
-    } else {
-      // libraryId 为空，提示错误
-      errorMsg.value = '题库参数缺失'
     }
+
+    // 无进度或错题模式 → 正常加载题目
+    await loadQuestionsForMode()
 
     isLoading.value = false
   } catch (e) {
@@ -273,6 +310,73 @@ async function loadQuizData() {
 
 function retryLoad() {
   loadQuizData()
+}
+
+/**
+ * 加载题目数据（正常模式/错题模式）
+ */
+async function loadQuestionsForMode() {
+  if (mode.value === 'wrong') {
+    if (!userStore.openid) {
+      await userStore.doLogin()
+    }
+    const wrongDetails = await wrongStore.getWrongQuestionDetails(userStore.openid!)
+    const questions = wrongDetails.map(w => w.question)
+    quizStore.initQuiz(questions, 'wrong')
+  } else if (libraryId.value) {
+    const questions = await libraryStore.getQuestions(libraryId.value)
+    if (questions.length === 0) {
+      const lib = libraryStore.libraries.find(l => l._id === libraryId.value)
+      if (lib && lib.totalQuestions > 0) {
+        errorMsg.value = '题目加载失败'
+      }
+    }
+    quizStore.initQuiz(questions, mode.value)
+
+    // 如有 targetQuestionId，跳转到指定题目
+    if (targetQuestionId.value && quizStore.questions.length > 0) {
+      const idx = quizStore.questions.findIndex(q => q._id === targetQuestionId.value)
+      if (idx !== -1) quizStore.goToQuestion(idx)
+    }
+  } else {
+    errorMsg.value = '题库参数缺失'
+  }
+}
+
+/**
+ * 用户选择"继续上次进度"
+ */
+function handleResume() {
+  const saved = savedProgressData.value
+  if (!saved) return
+
+  quizStore.initQuiz(saved.questions, saved.mode)
+  quizStore.goToQuestion(saved.currentIndex)
+  // 恢复答案
+  for (const [qId, ans] of Object.entries(saved.answers)) {
+    quizStore.setAnswer(qId, ans)
+  }
+  showResumeDialog.value = false
+  clearQuizProgress(libraryId.value, mode.value)
+}
+
+/**
+ * 用户选择"重新开始"
+ */
+async function handleRestart() {
+  showResumeDialog.value = false
+  clearQuizProgress(libraryId.value, mode.value)
+  isLoading.value = true
+  await loadQuestionsForMode()
+  isLoading.value = false
+}
+
+/**
+ * 用户取消（点返回或遮罩），保留进度不清除
+ */
+function handleCancelResume() {
+  showResumeDialog.value = false
+  uni.navigateBack()
 }
 
 onMounted(() => {
@@ -436,6 +540,103 @@ onMounted(() => {
   font-weight: 500;
   color: #fff;
   border: none;
+}
+
+// 恢复进度弹窗
+.resume-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.resume-dialog {
+  width: 100%;
+  max-width: 340px;
+  background: #fff;
+  border-radius: 24px;
+  padding: 32px 24px;
+}
+
+.resume-dialog-title {
+  display: block;
+  font-size: 20px;
+  font-weight: 600;
+  color: #333;
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.resume-dialog-body {
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 24px;
+}
+
+.resume-progress-text {
+  display: block;
+  font-size: 15px;
+  color: #555;
+  text-align: center;
+
+  & + & {
+    margin-top: 8px;
+    font-size: 13px;
+    color: #999;
+  }
+}
+
+.resume-warning {
+  margin-top: 12px;
+  padding: 10px;
+  background: #fff7e6;
+  border-radius: 8px;
+  border-left: 3px solid #faad14;
+
+  text {
+    font-size: 13px;
+    color: #d48806;
+    line-height: 1.5;
+  }
+}
+
+.resume-dialog-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.resume-btn {
+  width: 100%;
+  height: 48px;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 500;
+  border: none;
+
+  &.primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #fff;
+  }
+
+  &.secondary {
+    background: #f5f5f5;
+    color: #666;
+  }
+
+  &.cancel {
+    background: #fff;
+    color: #999;
+    border: 1px solid #e8e8e8;
+  }
 }
 
 .score-modal {

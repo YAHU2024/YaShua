@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import type { Question, QuizProgress } from '@/types'
-import { setQuizProgress, getQuizProgress, clearQuizProgress } from '@/utils/storage'
+import { setQuizProgress, getQuizProgress, clearQuizProgress, hasQuizProgress } from '@/utils/storage'
 import { isCloudAvailable } from '@/utils/cloud'
 import { useUserStore } from './user'
 
@@ -70,7 +70,8 @@ export const useQuizStore = defineStore('quiz', () => {
 
   function finishQuiz() {
     isFinished.value = true
-    clearQuizProgress()
+    const libId = questions.value[0]?.libraryId || ''
+    clearQuizProgress(libId, mode.value)
   }
 
   function saveProgress() {
@@ -85,8 +86,8 @@ export const useQuizStore = defineStore('quiz', () => {
     setQuizProgress(progress)
   }
 
-  function loadProgress(): boolean {
-    const progress = getQuizProgress()
+  function loadProgress(libraryId: string, quizMode: 'sequence' | 'random' | 'wrong'): boolean {
+    const progress = getQuizProgress(libraryId, quizMode)
     if (progress) {
       questions.value = progress.questions
       mode.value = progress.mode
@@ -97,6 +98,13 @@ export const useQuizStore = defineStore('quiz', () => {
       return true
     }
     return false
+  }
+
+  /**
+   * 检查是否有该题库+模式的保存进度
+   */
+  function savedProgressExists(libraryId: string, quizMode: 'sequence' | 'random' | 'wrong'): boolean {
+    return hasQuizProgress(libraryId, quizMode)
   }
 
   function calculateScore(): { correct: number; total: number } {
@@ -334,6 +342,7 @@ export const useQuizStore = defineStore('quiz', () => {
     progress,
     finishQuiz,
     loadProgress,
+    savedProgressExists,
     calculateScore,
     saveResults
   }

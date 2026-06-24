@@ -131,6 +131,73 @@ export const useWrongStore = defineStore('wrong', () => {
     }
   }
 
+  /**
+   * 实时记录单道错题（逐题收集）
+   * 在 confirmAnswer 时调用，答错立即记录
+   */
+  async function addWrongQuestion(openid: string, questionId: string, userAnswer: string[]): Promise<void> {
+    // 本地模式 → 直接写本地存储
+    if (!isCloudAvailable() || openid.startsWith('local_')) {
+      const local = localGet()
+      const idx = local.findIndex(w => w.questionId === questionId)
+      if (idx >= 0) {
+        local[idx].userAnswer = userAnswer
+        local[idx].wrongCount = (local[idx].wrongCount || 1) + 1
+        local[idx].lastWrongTime = new Date().toISOString()
+      } else {
+        local.push({
+          openid,
+          questionId,
+          userAnswer,
+          wrongCount: 1,
+          lastWrongTime: new Date().toISOString()
+        } as any)
+      }
+      localSet(local)
+      return
+    }
+
+    // 云模式：查重后新增或更新
+    try {
+      const db = uni.cloud.database()
+      const existing = await db.collection('wrongQuestions')
+        .where({ openid, questionId })
+        .get()
+
+      if (existing.data.length > 0) {
+        await db.collection('wrongQuestions').doc(existing.data[0]._id).update({
+          data: {
+            userAnswer,
+            wrongCount: db.command.inc(1),
+            lastWrongTime: new Date()
+          }
+        })
+      } else {
+        await db.collection('wrongQuestions').add({
+          data: {
+            openid,
+            questionId,
+            userAnswer,
+            wrongCount: 1,
+            lastWrongTime: new Date()
+          }
+        })
+      }
+    } catch (e) {
+      console.error('实时记录错题失败', e)
+      // 降级到本地
+      const local = localGet()
+      const idx = local.findIndex(w => w.questionId === questionId)
+      if (idx >= 0) {
+        local[idx].userAnswer = userAnswer
+        local[idx].wrongCount = (local[idx].wrongCount || 1) + 1
+      } else {
+        local.push({ openid, questionId, userAnswer, wrongCount: 1, lastWrongTime: new Date().toISOString() } as any)
+      }
+      localSet(local)
+    }
+  }
+
   function getWrongCount(): number {
     return wrongQuestions.value.length
   }
@@ -141,6 +208,7 @@ export const useWrongStore = defineStore('wrong', () => {
     getWrongQuestionDetails,
     deleteWrongQuestion,
     clearAllWrongQuestions,
+    addWrongQuestion,
     getWrongCount
   }
 })

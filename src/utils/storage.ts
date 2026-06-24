@@ -1,19 +1,29 @@
 import type { QuizProgress } from '@/types'
 
-const QUIZ_PROGRESS_KEY = 'quiz_progress'
+const QUIZ_PROGRESS_PREFIX = 'quiz_progress'
 const OPENID_KEY = 'openid'
+
+/**
+ * 构建复合键：quiz_progress_{libraryId}_{mode}
+ * 实现不同题库、不同练习模式的数据隔离
+ */
+function buildKey(libraryId: string, mode: string): string {
+  return `${QUIZ_PROGRESS_PREFIX}_${libraryId}_${mode}`
+}
 
 export function setQuizProgress(progress: QuizProgress): void {
   try {
-    uni.setStorageSync(QUIZ_PROGRESS_KEY, JSON.stringify(progress))
+    const key = buildKey(progress.libraryId, progress.mode)
+    uni.setStorageSync(key, JSON.stringify(progress))
   } catch (e) {
     console.error('保存刷题进度失败', e)
   }
 }
 
-export function getQuizProgress(): QuizProgress | null {
+export function getQuizProgress(libraryId: string, mode: string): QuizProgress | null {
   try {
-    const data = uni.getStorageSync(QUIZ_PROGRESS_KEY)
+    const key = buildKey(libraryId, mode)
+    const data = uni.getStorageSync(key)
     return data ? JSON.parse(data) : null
   } catch (e) {
     console.error('获取刷题进度失败', e)
@@ -21,11 +31,25 @@ export function getQuizProgress(): QuizProgress | null {
   }
 }
 
-export function clearQuizProgress(): void {
+export function clearQuizProgress(libraryId: string, mode: string): void {
   try {
-    uni.removeStorageSync(QUIZ_PROGRESS_KEY)
+    const key = buildKey(libraryId, mode)
+    uni.removeStorageSync(key)
   } catch (e) {
     console.error('清除刷题进度失败', e)
+  }
+}
+
+/**
+ * 检查是否有该题库+模式的保存进度
+ */
+export function hasQuizProgress(libraryId: string, mode: string): boolean {
+  try {
+    const key = buildKey(libraryId, mode)
+    const data = uni.getStorageSync(key)
+    return !!data
+  } catch {
+    return false
   }
 }
 
