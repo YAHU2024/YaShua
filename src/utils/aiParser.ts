@@ -1,15 +1,16 @@
 import type { Question } from '@/types'
-import { callFunction } from './cloud'
+import { aiParseQuestions } from './fileParser'
 
+/**
+ * AI 解析题库文本
+ * @param text 题库文本内容
+ * @returns 解析出的题目数组
+ */
 export async function parseText(text: string): Promise<Question[]> {
   try {
-    const result = await callFunction('aiParse', { text })
-    if (result.success && result.data) {
-      return result.data
-    }
-    return []
+    return await aiParseQuestions(text)
   } catch (e) {
     console.error('AI 解析失败', e)
-    return []
+    throw e
   }
 }

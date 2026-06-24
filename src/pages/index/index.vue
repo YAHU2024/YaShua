@@ -123,20 +123,20 @@ async function startQuiz(mode: 'sequence' | 'random' | 'wrong') {
   }
 
   if (libraries.value.length === 1) {
-    uni.navigateTo({ url: `/pages/quiz/index?mode=${mode}&libraryId=${libraries.value[0]._id}` })
+    uni.navigateTo({ url: `/pages/quiz/index?mode=${mode}&libraryId=${encodeURIComponent(libraries.value[0]._id)}` })
   } else {
     uni.showActionSheet({
       itemList: libraries.value.map(l => l.name),
       success: (res) => {
         const library = libraries.value[res.tapIndex]
-        uni.navigateTo({ url: `/pages/quiz/index?mode=${mode}&libraryId=${library._id}` })
+        uni.navigateTo({ url: `/pages/quiz/index?mode=${mode}&libraryId=${encodeURIComponent(library._id)}` })
       }
     })
   }
 }
 
 function startQuizFromLibrary(library: Library, mode: 'sequence' | 'random' | 'wrong') {
-  uni.navigateTo({ url: `/pages/quiz/index?mode=${mode}&libraryId=${library._id}` })
+  uni.navigateTo({ url: `/pages/quiz/index?mode=${mode}&libraryId=${encodeURIComponent(library._id)}` })
 }
 
 function goToLibrary() {

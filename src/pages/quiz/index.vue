@@ -69,8 +69,9 @@
 
     <view v-if="!isLoading && questions.length === 0" class="empty-state">
       <text class="empty-icon">📝</text>
-      <text class="empty-title">暂无题目</text>
-      <text class="empty-desc">该题库暂无题目或暂无错题</text>
+      <text class="empty-title">{{ errorMsg || '暂无题目' }}</text>
+      <text class="empty-desc">{{ errorMsg ? '请检查网络后重试' : '该题库暂无题目或暂无错题' }}</text>
+      <button v-if="errorMsg" class="retry-btn" @click="retryLoad">重新加载</button>
     </view>
 
     <view v-if="showScore" class="score-modal" @click="closeScore">
@@ -107,6 +108,7 @@ import { useQuizStore } from '@/stores/quiz'
 import { useLibraryStore } from '@/stores/library'
 import { useWrongStore } from '@/stores/wrong'
 import { useUserStore } from '@/stores/user'
+import { ensureCloudReady } from '@/utils/cloud'
 import type { Question } from '@/types'
 
 const quizStore = useQuizStore()
@@ -118,6 +120,7 @@ const isLoading = ref(true)
 const showResult = ref(false)
 const showScore = ref(false)
 const scoreResult = ref({ correct: 0, total: 0 })
+const errorMsg = ref('')
 
 const mode = ref<'sequence' | 'random' | 'wrong'>('sequence')
 const libraryId = ref('')
@@ -222,15 +225,22 @@ function closeScoreAndGoHome() {
   uni.switchTab({ url: '/pages/index/index' })
 }
 
-onMounted(async () => {
+async function loadQuizData() {
+  isLoading.value = true
+  errorMsg.value = ''
+
   try {
+    // 等待云开发初始化完成，避免云 API 在初始化完成前调用导致失败
+    await ensureCloudReady()
+
     const pages = getCurrentPages()
     const currentPage = pages[pages.length - 1]
     const options = (currentPage as any)?.options || {}
-    
+
     mode.value = (options.mode as 'sequence' | 'random' | 'wrong') || 'sequence'
-    libraryId.value = options.libraryId || ''
-    
+    // 解码 URL 参数，处理可能包含特殊字符的 libraryId
+    libraryId.value = options.libraryId ? decodeURIComponent(options.libraryId) : ''
+
     if (mode.value === 'wrong') {
       if (!userStore.openid) {
         await userStore.doLogin()
@@ -240,14 +250,33 @@ onMounted(async () => {
       quizStore.initQuiz(questions, 'wrong')
     } else if (libraryId.value) {
       const questions = await libraryStore.getQuestions(libraryId.value)
+      if (questions.length === 0) {
+        // 查看题库信息，判断是否有题目数据但加载失败
+        const lib = libraryStore.libraries.find(l => l._id === libraryId.value)
+        if (lib && lib.totalQuestions > 0) {
+          errorMsg.value = '题目加载失败'
+        }
+      }
       quizStore.initQuiz(questions, mode.value)
+    } else {
+      // libraryId 为空，提示错误
+      errorMsg.value = '题库参数缺失'
     }
-    
+
     isLoading.value = false
   } catch (e) {
     console.error('加载题目失败', e)
+    errorMsg.value = '加载题目失败'
     isLoading.value = false
   }
+}
+
+function retryLoad() {
+  loadQuizData()
+}
+
+onMounted(() => {
+  loadQuizData()
 })
 </script>
 
@@ -395,6 +424,18 @@ onMounted(async () => {
 .empty-desc {
   font-size: 14px;
   color: #999;
+  margin-bottom: 16px;
+}
+
+.retry-btn {
+  width: 140px;
+  height: 44px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 500;
+  color: #fff;
+  border: none;
 }
 
 .score-modal {

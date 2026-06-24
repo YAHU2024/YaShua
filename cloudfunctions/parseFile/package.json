@@ -1,0 +1,11 @@
+{
+  "name": "parseFile",
+  "version": "1.0.0",
+  "description": "文件文本提取云函数",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3",
+    "mammoth": "^1.8.0",
+    "xlsx": "^0.18.5"
+  }
+}

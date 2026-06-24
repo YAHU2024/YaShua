@@ -1,6 +1,9 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import type { UserStats } from '@/types'
+import { isCloudAvailable } from '@/utils/cloud'
+
+const LOCAL_KEY = 'local_user_stats'
 
 export const useStatsStore = defineStore('stats', () => {
   const totalQuestions = ref(0)
@@ -9,9 +12,27 @@ export const useStatsStore = defineStore('stats', () => {
   const todayCorrect = ref(0)
 
   async function loadStats(openid: string) {
+    // 云不可用或本地模式 → 从本地存储读取
+    if (!isCloudAvailable() || openid.startsWith('local_')) {
+      try {
+        const raw = uni.getStorageSync(LOCAL_KEY)
+        const list: any[] = raw ? JSON.parse(raw) : []
+        const stats = list.find((s: any) => s.openid === openid)
+        if (stats) {
+          totalQuestions.value = stats.totalQuestions || 0
+          correctCount.value = stats.correctCount || 0
+          todayQuestions.value = stats.todayQuestions || 0
+          todayCorrect.value = stats.todayCorrect || 0
+        }
+      } catch (e) {
+        console.error('加载本地统计数据失败', e)
+      }
+      return
+    }
+
     try {
       const db = uni.cloud.database()
-      const result = await db.collection('userStats').doc(openid).get()
+      const result = await db.collection('userStats').where({ _id: openid }).get()
       if (result.data.length > 0) {
         const stats = result.data[0] as UserStats
         totalQuestions.value = stats.totalQuestions || 0
@@ -21,6 +42,18 @@ export const useStatsStore = defineStore('stats', () => {
       }
     } catch (e) {
       console.error('加载统计数据失败', e)
+      // 降级到本地
+      try {
+        const raw = uni.getStorageSync(LOCAL_KEY)
+        const list: any[] = raw ? JSON.parse(raw) : []
+        const localStats = list.find((s: any) => s.openid === openid)
+        if (localStats) {
+          totalQuestions.value = localStats.totalQuestions || 0
+          correctCount.value = localStats.correctCount || 0
+          todayQuestions.value = localStats.todayQuestions || 0
+          todayCorrect.value = localStats.todayCorrect || 0
+        }
+      } catch { /* 静默降级 */ }
     }
   }
 

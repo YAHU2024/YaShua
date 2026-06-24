@@ -6,20 +6,18 @@ cloud.init({
 
 exports.main = async (event, context) => {
   try {
-    const { code } = event
-    if (!code) {
-      return { success: false, message: '缺少 code 参数' }
-    }
+    // 通过 getWXContext 直接获取调用者的 openid，无需再调用 _login
+    const wxContext = cloud.getWXContext()
+    const openid = wxContext.OPENID
 
-    const result = await cloud.callFunction({
-      name: '_login',
-      data: { code }
-    })
+    if (!openid) {
+      return { success: false, message: '获取 openid 失败' }
+    }
 
     return {
       success: true,
       data: {
-        openid: result.result.openid
+        openid
       }
     }
   } catch (e) {

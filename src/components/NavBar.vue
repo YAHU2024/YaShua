@@ -24,11 +24,18 @@ defineProps<{
 
 const statusBarHeight = ref(20)
 
-uni.getSystemInfo({
-  success: (res) => {
-    statusBarHeight.value = res.statusBarHeight || 20
-  }
-})
+// 使用 getWindowInfo 替代已废弃的 getSystemInfo
+try {
+  const windowInfo = uni.getWindowInfo()
+  statusBarHeight.value = windowInfo.statusBarHeight || 20
+} catch (e) {
+  // 低版本基础库降级处理
+  uni.getSystemInfo({
+    success: (res) => {
+      statusBarHeight.value = res.statusBarHeight || 20
+    }
+  })
+}
 
 function handleBack() {
   uni.navigateBack({

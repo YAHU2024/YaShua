@@ -8,3 +8,6 @@ declare module '@vue/runtime-core' {
 
   }
 }
+
+// 微信小程序专属 API 的全局声明
+declare const wx: any

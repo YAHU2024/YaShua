@@ -34,7 +34,8 @@
     "build:quickapp-webview": "uni build -p quickapp-webview",
     "build:quickapp-webview-huawei": "uni build -p quickapp-webview-huawei",
     "build:quickapp-webview-union": "uni build -p quickapp-webview-union",
-    "type-check": "vue-tsc --noEmit"
+    "type-check": "vue-tsc --noEmit",
+    "sync:cf": "node -e \"var s='cloudfunctions',d='dist/build/mp-weixin/cloudfunctions';try{require('fs').lstatSync(d).isSymbolicLink()&&console.log('is junction, skip')||require('fs').cpSync(s,d,{recursive:true,force:true})}catch(e){require('fs').cpSync(s,d,{recursive:true,force:true})}\""
   },
   "dependencies": {
     "@dcloudio/uni-app": "3.0.0-4080420251103001",
