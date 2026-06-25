@@ -21,8 +21,14 @@ export const useStatsStore = defineStore('stats', () => {
         if (stats) {
           totalQuestions.value = stats.totalQuestions || 0
           correctCount.value = stats.correctCount || 0
-          todayQuestions.value = stats.todayQuestions || 0
-          todayCorrect.value = stats.todayCorrect || 0
+          // 检查是否是今日数据，非今日则仅清零内存（不再写回本地）
+          if (!isToday(stats.updatedAt)) {
+            todayQuestions.value = 0
+            todayCorrect.value = 0
+          } else {
+            todayQuestions.value = stats.todayQuestions || 0
+            todayCorrect.value = stats.todayCorrect || 0
+          }
         }
       } catch (e) {
         console.error('加载本地统计数据失败', e)
@@ -37,8 +43,14 @@ export const useStatsStore = defineStore('stats', () => {
         const stats = result.data[0] as UserStats
         totalQuestions.value = stats.totalQuestions || 0
         correctCount.value = stats.correctCount || 0
-        todayQuestions.value = stats.todayQuestions || 0
-        todayCorrect.value = stats.todayCorrect || 0
+        // 检查是否是今日数据，非今日则仅清零内存（不再写回云端，避免覆盖 updateStats 刚写入的值）
+        if (!isToday(stats.updatedAt)) {
+          todayQuestions.value = 0
+          todayCorrect.value = 0
+        } else {
+          todayQuestions.value = stats.todayQuestions || 0
+          todayCorrect.value = stats.todayCorrect || 0
+        }
       }
     } catch (e) {
       console.error('加载统计数据失败', e)
@@ -50,11 +62,24 @@ export const useStatsStore = defineStore('stats', () => {
         if (localStats) {
           totalQuestions.value = localStats.totalQuestions || 0
           correctCount.value = localStats.correctCount || 0
-          todayQuestions.value = localStats.todayQuestions || 0
-          todayCorrect.value = localStats.todayCorrect || 0
+          if (!isToday(localStats.updatedAt)) {
+            todayQuestions.value = 0
+            todayCorrect.value = 0
+          } else {
+            todayQuestions.value = localStats.todayQuestions || 0
+            todayCorrect.value = localStats.todayCorrect || 0
+          }
         }
       } catch { /* 静默降级 */ }
     }
+  }
+
+  /**
+   * 判断是否为今日日期
+   */
+  function isToday(dateStr?: string | Date): boolean {
+    if (!dateStr) return false
+    return new Date(dateStr).toDateString() === new Date().toDateString()
   }
 
   function getAccuracy(): number {

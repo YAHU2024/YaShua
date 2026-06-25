@@ -81,6 +81,7 @@
 
 <script setup lang="ts">
 import { onMounted, computed } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import StatsCard from '@/components/StatsCard.vue'
 import { useUserStore } from '@/stores/user'
 import { useLibraryStore } from '@/stores/library'
@@ -102,6 +103,16 @@ onMounted(async () => {
     await statsStore.loadStats(userStore.openid)
     await wrongStore.loadWrongQuestions(userStore.openid)
   }
+})
+
+onShow(async () => {
+  // openid 未就绪时兜底登录（首次加载时 onShow 可能在 doLogin 完成前触发）
+  if (!userStore.openid) {
+    await userStore.doLogin()
+  }
+  // 不再调用 loadStats/loadWrongQuestions → 由 syncStatsStore 保证内存数据实时性
+  // 冷启动时的首次加载由 onMounted 负责
+  console.log('[index.onShow] statsStore 当前值:', { todayQuestions: statsStore.todayQuestions, todayCorrect: statsStore.todayCorrect, total: statsStore.totalQuestions, correct: statsStore.correctCount })
 })
 
 async function startQuiz(mode: 'sequence' | 'random' | 'wrong') {

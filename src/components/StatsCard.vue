@@ -23,7 +23,9 @@
 </template>
 
 <script setup lang="ts">
-defineProps<{
+import { watch } from 'vue'
+
+const props = defineProps<{
   title: string
   value: string | number
   label: string
@@ -31,6 +33,13 @@ defineProps<{
   subLabel?: string
   progress?: number
 }>()
+
+watch(() => props.value, (newVal) => {
+  console.log(`[StatsCard.${props.title}] value 变化: ${newVal}`)
+})
+watch(() => props.subValue, (newVal) => {
+  console.log(`[StatsCard.${props.title}] subValue 变化: ${newVal}`)
+})
 </script>
 
 <style lang="scss" scoped>

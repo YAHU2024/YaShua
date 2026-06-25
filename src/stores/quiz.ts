@@ -4,6 +4,7 @@ import type { Question, QuizProgress } from '@/types'
 import { setQuizProgress, getQuizProgress, clearQuizProgress, hasQuizProgress } from '@/utils/storage'
 import { isCloudAvailable } from '@/utils/cloud'
 import { useUserStore } from './user'
+import { useStatsStore } from './stats'
 
 export const useQuizStore = defineStore('quiz', () => {
   const questions = ref<Question[]>([])
@@ -137,8 +138,9 @@ export const useQuizStore = defineStore('quiz', () => {
     }
 
     // 云不可用或本地模式 → 全部存本地 storage
+    // 注意：今日学习 stats 已由 recordSingleAnswer 逐题实时更新，此处不一重复计数
     if (!isCloudAvailable() || openid.startsWith('local_')) {
-      saveResultsLocal(openid, stats)
+      saveResultsLocal(openid)
       return
     }
 
@@ -220,16 +222,19 @@ export const useQuizStore = defineStore('quiz', () => {
       if (errorCount > 0) {
         console.warn(`保存答题结果：${errorCount} 条记录写入失败`)
       }
-      await updateStats(openid, stats)
+      // 云统计更新（用 SET 写入当前 statsStore 值，因为每题已由 recordSingleAnswer 实时累加）
+      const cloudOk = await updateStats(openid)
+      if (!cloudOk) {
+        console.warn('[saveResults] 云统计写入失败，已由 recordSingleAnswer 逐题保底到本地 storage')
+      }
     } catch (e) {
       console.error('保存答题结果失败', e)
-      // 云失败降级到本地
-      saveResultsLocal(openid, stats)
+      // 即使异常，stats 也已在每题确认时实时写入本地 storage
     }
   }
 
   // 本地存储答题结果
-  function saveResultsLocal(openid: string, stats: { correct: number; total: number }) {
+  function saveResultsLocal(openid: string) {
     const localRecords = localGet('local_quiz_records')
     const localWrong = localGet('local_wrong_questions')
 
@@ -248,7 +253,7 @@ export const useQuizStore = defineStore('quiz', () => {
         duration: 0
       })
 
-      // 错题
+      // 错题（兜底，实际上 confirmAnswer 已逐题保存）
       if (!isCorrect) {
         const idx = localWrong.findIndex((w: any) => w.questionId === question._id)
         if (idx >= 0) {
@@ -271,27 +276,7 @@ export const useQuizStore = defineStore('quiz', () => {
 
     localSet('local_quiz_records', localRecords)
     localSet('local_wrong_questions', localWrong)
-
-    // 更新本地统计
-    const localStats = localGet('local_user_stats')
-    const existing = localStats.find((s: any) => s.openid === openid)
-    if (existing) {
-      existing.totalQuestions += stats.total
-      existing.correctCount += stats.correct
-      existing.todayQuestions += stats.total
-      existing.todayCorrect += stats.correct
-      existing.updatedAt = new Date().toISOString()
-    } else {
-      localStats.push({
-        openid,
-        totalQuestions: stats.total,
-        correctCount: stats.correct,
-        todayQuestions: stats.total,
-        todayCorrect: stats.correct,
-        updatedAt: new Date().toISOString()
-      })
-    }
-    localSet('local_user_stats', localStats)
+    // 不再写入 local_user_stats：已由 recordSingleAnswer → saveResultsLocalForSingle 逐题实时更新
   }
 
   function localGet(key: string): any[] {
@@ -309,38 +294,120 @@ export const useQuizStore = defineStore('quiz', () => {
     }
   }
 
-  async function updateStats(openid: string, stats: { correct: number; total: number }) {
-    // 本地模式已由 saveResultsLocal 处理，云不可用时跳过
-    if (!isCloudAvailable() || openid.startsWith('local_')) return
+  /**
+   * 判断日期是否为今日
+   */
+  function isSameDay(dateStr?: string | Date): boolean {
+    if (!dateStr) return false
+    return new Date(dateStr).toDateString() === new Date().toDateString()
+  }
+
+  /**
+   * 每题实时统计：确认答案后立刻更新今日学习数据（不依赖交卷）
+   * 与错题收集保持一致的实时性，确保用户中途返回也能看到更新
+   */
+  function recordSingleAnswer(isCorrect: boolean) {
+    const statsStore = useStatsStore()
+    const today = new Date().toDateString()
+    // 跨日检测：新的一天清零
+    if (_lastSyncDate && _lastSyncDate !== today) {
+      statsStore.todayQuestions = 1
+      statsStore.todayCorrect = isCorrect ? 1 : 0
+    } else {
+      statsStore.todayQuestions += 1
+      if (isCorrect) statsStore.todayCorrect += 1
+    }
+    statsStore.totalQuestions += 1
+    if (isCorrect) statsStore.correctCount += 1
+    _lastSyncDate = today
+    console.log(`[recordSingleAnswer] ${isCorrect ? '正确' : '错误'}, todayQuestions=${statsStore.todayQuestions}, todayCorrect=${statsStore.todayCorrect}`)
+    // 同步写本地 storage 做持久化
+    try {
+      const openid = useUserStore().openid
+      if (openid) {
+        saveResultsLocalForSingle(openid, isCorrect)
+      }
+    } catch { /* 静默 */ }
+  }
+
+  /** 单题统计写入本地 storage */
+  function saveResultsLocalForSingle(openid: string, isCorrect: boolean) {
+    const localStats = localGet('local_user_stats')
+    const existing = localStats.find((s: any) => s.openid === openid)
+    if (existing) {
+      const isNewDay = !isSameDay(existing.updatedAt)
+      existing.totalQuestions = (existing.totalQuestions || 0) + 1
+      if (isCorrect) existing.correctCount = (existing.correctCount || 0) + 1
+      existing.todayQuestions = isNewDay ? 1 : (existing.todayQuestions || 0) + 1
+      existing.todayCorrect = isNewDay ? (isCorrect ? 1 : 0) : (existing.todayCorrect || 0) + (isCorrect ? 1 : 0)
+      existing.updatedAt = new Date().toISOString()
+    } else {
+      localStats.push({
+        openid,
+        totalQuestions: 1,
+        correctCount: isCorrect ? 1 : 0,
+        todayQuestions: 1,
+        todayCorrect: isCorrect ? 1 : 0,
+        updatedAt: new Date().toISOString()
+      })
+    }
+    localSet('local_user_stats', localStats)
+  }
+
+  /**
+   * 批量同步更新 statsStore 响应式值（交卷时调用）
+   * 内置跨日检测：新的一天自动清零今日计数再累加
+   */
+  let _lastSyncDate = ''
+  function syncStatsStore(stats: { correct: number; total: number }) {
+    const statsStore = useStatsStore()
+    const beforeToday = statsStore.todayQuestions
+    const beforeCorrect = statsStore.todayCorrect
+    console.log(`[syncStatsStore] 收到本次: +${stats.total}题/${stats.correct}对, 跨日:${_lastSyncDate && _lastSyncDate !== new Date().toDateString()}, 累加前: ${beforeToday}/${beforeCorrect}`)
+    statsStore.totalQuestions += stats.total
+    statsStore.correctCount += stats.correct
+    // 跨日检测：新的一天用 = 赋初值，同一天用 += 累加
+    const today = new Date().toDateString()
+    if (_lastSyncDate && _lastSyncDate !== today) {
+      statsStore.todayQuestions = stats.total
+      statsStore.todayCorrect = stats.correct
+    } else {
+      statsStore.todayQuestions += stats.total
+      statsStore.todayCorrect += stats.correct
+    }
+    _lastSyncDate = today
+    console.log(`[syncStatsStore] 完成: todayQuestions=${statsStore.todayQuestions}, todayCorrect=${statsStore.todayCorrect}`)
+  }
+
+  async function updateStats(openid: string): Promise<boolean> {
+    // 本地模式已由 saveResultsLocalForSingle 处理，云不可用时跳过
+    if (!isCloudAvailable() || openid.startsWith('local_')) return false
 
     try {
+      const statsStore = useStatsStore()
       const db = uni.cloud.database()
       const existing = await db.collection('userStats').where({ _id: openid }).get()
       
+      // 直接 SET statsStore 当前值（每题已由 recordSingleAnswer 实时累加，云只需同步最终结果）
+      const cloudData = {
+        totalQuestions: statsStore.totalQuestions,
+        correctCount: statsStore.correctCount,
+        todayQuestions: statsStore.todayQuestions,
+        todayCorrect: statsStore.todayCorrect,
+        updatedAt: new Date()
+      }
+      
       if (existing.data.length > 0) {
-        await db.collection('userStats').doc(openid).update({
-          data: {
-            totalQuestions: db.command.inc(stats.total),
-            correctCount: db.command.inc(stats.correct),
-            todayQuestions: db.command.inc(stats.total),
-            todayCorrect: db.command.inc(stats.correct),
-            updatedAt: new Date()
-          }
-        })
+        await db.collection('userStats').doc(openid).update({ data: cloudData })
       } else {
         await db.collection('userStats').add({
-          data: {
-            _id: openid,
-            totalQuestions: stats.total,
-            correctCount: stats.correct,
-            todayQuestions: stats.total,
-            todayCorrect: stats.correct,
-            updatedAt: new Date()
-          }
+          data: { _id: openid, ...cloudData }
         })
       }
+      return true
     } catch (e) {
-      console.error('更新统计失败', e)
+      console.error('[updateStats] 云统计更新失败:', e)
+      return false
     }
   }
 
@@ -365,6 +432,7 @@ export const useQuizStore = defineStore('quiz', () => {
     savedProgressExists,
     saveProgress,
     calculateScore,
-    saveResults
+    saveResults,
+    recordSingleAnswer
   }
 })

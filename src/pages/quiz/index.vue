@@ -224,6 +224,9 @@ async function confirmAnswer() {
   }
   showResult.value = true
 
+  // 每题实时统计：更新今日学习数据（不依赖交卷，确保中途返回也能看到）
+  quizStore.recordSingleAnswer(isCorrect.value)
+
   // 实时错题收集：答错立即记录到对应题库的错题集
   // libraryId 优先从URL参数获取，兜底从题目数据获取（错题模式可能没有URL参数）
   const effectiveLibraryId = libraryId.value || currentQuestion.value?.libraryId || ''
