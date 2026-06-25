@@ -1,9 +1,9 @@
-# 智慧刷题项目 - 长期记忆
+# 雅刷项目 - 长期记忆
 
 ## 项目信息
 - **appid**: wxeabb8b5fdc889d94
 - **云环境 ID**: cloud1-d6gspphu1758644bc
-- **项目名**: 智慧刷题（uni-app + Vue3 + Pinia + 微信云开发）
+- **项目名**: 雅刷（uni-app + Vue3 + Pinia + 微信云开发）
 - **构建命令**: `npm run build:mp-weixin` → 产物在 `dist/build/mp-weixin/`
 
 ## 关键技术决策

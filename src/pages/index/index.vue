@@ -8,10 +8,8 @@
       
       <view class="header-top">
         <view class="header-top-spacer"></view>
-        <text class="header-brand">智慧刷题</text>
-        <view class="header-top-spacer header-actions">
-          <text class="header-icon-btn" @click="goToSettings">⚙</text>
-        </view>
+        <text class="header-brand">雅刷</text>
+        <view class="header-top-spacer"></view>
       </view>
       <text class="header-subtitle">轻松学习，高效备考</text>
     </view>
@@ -229,9 +227,6 @@ function goToLibrary() {
   uni.switchTab({ url: '/pages/library/index' })
 }
 
-function goToSettings() {
-  uni.navigateTo({ url: '/pages/settings/index' })
-}
 </script>
 
 <style lang="scss" scoped>
@@ -295,16 +290,6 @@ function goToSettings() {
     display: flex;
     align-items: center;
     justify-content: flex-end;
-  }
-}
-
-.header-icon-btn {
-  font-size: 40rpx;
-  color: rgba(255,255,255,0.7);
-  padding: 8rpx;
-  
-  &:active {
-    opacity: 0.6;
   }
 }
 

@@ -70,7 +70,7 @@
       </view>
 
       <view class="footer">
-        <text class="footer-text">智慧刷题 · 轻松学习</text>
+        <text class="footer-text">雅刷 · 轻松学习</text>
         <text class="footer-copyright">© 2024 All Rights Reserved</text>
       </view>
     </view>
@@ -97,7 +97,7 @@ function setDailyGoal() {
 function showAbout() {
   uni.showModal({
     title: '版本信息',
-    content: '智慧刷题 v1.0.0\n\n一款帮助你高效学习的刷题小程序',
+    content: '雅刷 v1.0.0\n\n一款帮助你高效学习的刷题小程序',
     showCancel: false
   })
 }

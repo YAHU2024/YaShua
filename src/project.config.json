@@ -16,7 +16,7 @@
   "compileType": "miniprogram",
   "libVersion": "",
   "appid": "wxeabb8b5fdc889d94",
-  "projectname": "智慧刷题",
+  "projectname": "雅刷",
   "cloudfunctionRoot": "cloudfunctions/",
   "condition": {
     "search": {
