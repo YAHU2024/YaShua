@@ -172,13 +172,14 @@ export const useQuizStore = defineStore('quiz', () => {
         if (!isCorrect) {
           try {
             const existing = await db.collection('wrongQuestions')
-              .where({ openid, questionId: question._id })
+              .where({ openid, questionId: question._id, libraryId: question.libraryId })
               .get()
 
             if (existing.data.length > 0) {
               await db.collection('wrongQuestions').doc(existing.data[0]._id).update({
                 data: {
                   userAnswer,
+                  libraryId: question.libraryId,
                   wrongCount: db.command.inc(1),
                   lastWrongTime: new Date()
                 }
@@ -188,6 +189,7 @@ export const useQuizStore = defineStore('quiz', () => {
                 data: {
                   openid,
                   questionId: question._id || '',
+                  libraryId: question.libraryId,
                   userAnswer,
                   wrongCount: 1,
                   lastWrongTime: new Date()
@@ -196,6 +198,21 @@ export const useQuizStore = defineStore('quiz', () => {
             }
           } catch {
             errorCount++
+            // 降级到本地存储
+            const localWrong = localGet('local_wrong_questions')
+            const widx = localWrong.findIndex((w: any) => w.questionId === question._id && w.libraryId === question.libraryId)
+            if (widx >= 0) {
+              localWrong[widx].userAnswer = userAnswer
+              localWrong[widx].wrongCount = (localWrong[widx].wrongCount || 1) + 1
+              localWrong[widx].lastWrongTime = new Date().toISOString()
+              localWrong[widx].libraryId = question.libraryId
+            } else {
+              localWrong.push({
+                openid, questionId: question._id || '', libraryId: question.libraryId,
+                userAnswer, wrongCount: 1, lastWrongTime: new Date().toISOString()
+              })
+            }
+            localSet('local_wrong_questions', localWrong)
           }
         }
       }
@@ -238,10 +255,12 @@ export const useQuizStore = defineStore('quiz', () => {
           localWrong[idx].userAnswer = userAnswer
           localWrong[idx].wrongCount = (localWrong[idx].wrongCount || 1) + 1
           localWrong[idx].lastWrongTime = new Date().toISOString()
+          localWrong[idx].libraryId = question.libraryId
         } else {
           localWrong.push({
             openid,
             questionId: question._id || '',
+            libraryId: question.libraryId,
             userAnswer,
             wrongCount: 1,
             lastWrongTime: new Date().toISOString()

@@ -23,6 +23,7 @@ export interface WrongQuestion {
   _id?: string
   questionId: string
   openid: string
+  libraryId: string
   userAnswer: string[]
   wrongCount: number
   lastWrongTime: Date

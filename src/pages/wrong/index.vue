@@ -3,24 +3,46 @@
     <NavBar title="错题本" />
     
     <view class="content">
-      <view v-if="wrongList.length > 0" class="wrong-list">
+      <!-- 按题库分组展示错题 -->
+      <view v-if="groupedList.length > 0" class="wrong-groups">
         <view
-          v-for="item in wrongList"
-          :key="item._id"
-          class="wrong-item"
-          @click="startReview(item)"
+          v-for="group in groupedList"
+          :key="group.libraryId"
+          class="wrong-group"
         >
-          <view class="wrong-content">
-            <text class="wrong-text">{{ truncate(item.question.content, 50) }}</text>
-          </view>
-          <view class="wrong-meta">
-            <view class="wrong-count">
-              <text class="count-icon">✗</text>
-              <text class="count-text">{{ item.wrongCount }}次</text>
+          <!-- 分组头部 -->
+          <view class="group-header">
+            <view class="group-info">
+              <text class="group-name">{{ group.libraryName }}</text>
+              <text class="group-count">{{ group.items.length }} 道错题</text>
             </view>
-            <view class="wrong-time">{{ formatDate(item.lastWrongTime) }}</view>
+            <view class="group-actions">
+              <text class="group-action-btn" @click="startGroupReview(group)">全部重做</text>
+              <text class="group-action-btn secondary" @click="clearGroup(group)">清空</text>
+            </view>
           </view>
-          <view class="wrong-arrow">›</view>
+
+          <!-- 该分组下的错题列表 -->
+          <view class="wrong-list">
+            <view
+              v-for="item in group.items"
+              :key="item._id"
+              class="wrong-item"
+              @click="startReview(item)"
+            >
+              <view class="wrong-content">
+                <text class="wrong-text">{{ truncate(item.question.content, 50) }}</text>
+              </view>
+              <view class="wrong-meta">
+                <view class="wrong-count">
+                  <text class="count-icon">✗</text>
+                  <text class="count-text">{{ item.wrongCount }}次</text>
+                </view>
+                <view class="wrong-time">{{ formatDate(item.lastWrongTime) }}</view>
+              </view>
+              <view class="wrong-arrow">›</view>
+            </view>
+          </view>
         </view>
       </view>
 
@@ -29,32 +51,69 @@
         <text class="empty-title">暂无错题</text>
         <text class="empty-desc">继续加油，保持全对！</text>
       </view>
-
-      <view v-if="wrongList.length > 0" class="action-bar">
-        <button class="action-btn" @click="startAllReview">
-          <text>重新练习全部错题</text>
-        </button>
-        <button class="action-btn secondary" @click="clearAll">
-          <text>清空错题本</text>
-        </button>
-      </view>
     </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import NavBar from '@/components/NavBar.vue'
 import { useWrongStore } from '@/stores/wrong'
 import { useUserStore } from '@/stores/user'
+import { useLibraryStore } from '@/stores/library'
 import type { WrongQuestion, Question } from '@/types'
 
 const wrongStore = useWrongStore()
 const userStore = useUserStore()
+const libraryStore = useLibraryStore()
 
 const wrongList = ref<(WrongQuestion & { question: Question })[]>([])
 
+// 错题按题库分组
+interface WrongGroup {
+  libraryId: string
+  libraryName: string
+  items: (WrongQuestion & { question: Question })[]
+}
+
+const groupedList = computed<WrongGroup[]>(() => {
+  const groups: Record<string, WrongGroup> = {}
+
+  for (const item of wrongList.value) {
+    // 获取 libraryId：优先用错题记录里的，其次用题目数据里的
+    const libId = item.libraryId || item.question?.libraryId || '__unknown__'
+    if (!groups[libId]) {
+      groups[libId] = {
+        libraryId: libId,
+        libraryName: getLibraryName(libId),
+        items: []
+      }
+    }
+    groups[libId].items.push(item)
+  }
+
+  return Object.values(groups)
+})
+
+function getLibraryName(libraryId: string): string {
+  if (libraryId === '__unknown__') return '未分类'
+  const lib = libraryStore.libraries.find(l => l._id === libraryId)
+  return lib?.name || '未分类'
+}
+
 onMounted(async () => {
+  // 加载题库列表（用于显示题库名称）
+  if (libraryStore.libraries.length === 0) {
+    await libraryStore.loadLibraries()
+  }
+  if (userStore.openid) {
+    await loadWrongQuestions()
+  }
+})
+
+// 页面显示时刷新错题列表（从 quiz 返回等场景）
+onShow(async () => {
   if (userStore.openid) {
     await loadWrongQuestions()
   }
@@ -85,19 +144,31 @@ function startReview(item: WrongQuestion & { question: Question }) {
   uni.navigateTo({ url: `/pages/quiz/index?mode=wrong&questionId=${item.questionId}` })
 }
 
-function startAllReview() {
-  uni.navigateTo({ url: '/pages/quiz/index?mode=wrong' })
+function startGroupReview(group: WrongGroup) {
+  let libId = group.libraryId
+  // __unknown__ 时尝试从第一条错题的题目数据中获取 libraryId
+  if (libId === '__unknown__') {
+    libId = group.items[0]?.question?.libraryId || ''
+  }
+  const encoded = libId ? encodeURIComponent(libId) : ''
+  uni.navigateTo({ url: `/pages/quiz/index?mode=wrong&libraryId=${encoded}` })
 }
 
-async function clearAll() {
+async function clearGroup(group: WrongGroup) {
+  const name = group.libraryId === '__unknown__' ? '未分类' : group.libraryName
   uni.showModal({
     title: '确认清空',
-    content: '确定要清空所有错题吗？此操作不可恢复。',
+    content: `确定要清空「${name}」的所有错题吗？此操作不可恢复。`,
     success: async (res) => {
       if (res.confirm && userStore.openid) {
-        const result = await wrongStore.clearAllWrongQuestions(userStore.openid)
+        const libId = group.libraryId === '__unknown__' ? undefined : group.libraryId
+        const result = await wrongStore.clearAllWrongQuestions(userStore.openid, libId)
         if (result) {
-          wrongList.value = []
+          // 从列表中移除该分组
+          wrongList.value = wrongList.value.filter(item => {
+            const itemLibId = item.libraryId || item.question?.libraryId || '__unknown__'
+            return itemLibId !== group.libraryId
+          })
           uni.showToast({ title: '清空成功', icon: 'success' })
         }
       }
@@ -114,13 +185,74 @@ async function clearAll() {
 
 .content {
   padding: 20px;
-  padding-bottom: 120px;
+  padding-bottom: 40px;
+}
+
+.wrong-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.wrong-group {
+  // 每个分组
+}
+
+.group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: #fff;
+  border-radius: 12px;
+  margin-bottom: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.group-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.group-name {
+  font-size: 17px;
+  font-weight: 600;
+  color: #333;
+}
+
+.group-count {
+  font-size: 12px;
+  color: #ff4d4f;
+  margin-top: 4px;
+}
+
+.group-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.group-action-btn {
+  font-size: 13px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  font-weight: 500;
+
+  &.secondary {
+    background: #f5f5f5;
+    color: #999;
+  }
+
+  &:active {
+    opacity: 0.8;
+  }
 }
 
 .wrong-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .wrong-item {
@@ -198,38 +330,5 @@ async function clearAll() {
 .empty-desc {
   font-size: 14px;
   color: #999;
-}
-
-.action-bar {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  display: flex;
-  gap: 12px;
-  padding: 20px;
-  padding-bottom: calc(20px + env(safe-area-inset-bottom));
-  background: #fff;
-  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.06);
-}
-
-.action-btn {
-  flex: 1;
-  height: 48px;
-  border-radius: 12px;
-  font-size: 16px;
-  font-weight: 500;
-  border: none;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: #fff;
-  
-  &.secondary {
-    background: #f5f5f5;
-    color: #666;
-  }
-  
-  &:active {
-    opacity: 0.8;
-  }
 }
 </style>

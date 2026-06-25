@@ -131,6 +131,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { onUnload } from '@dcloudio/uni-app'
 import NavBar from '@/components/NavBar.vue'
 import QuestionCard from '@/components/QuestionCard.vue'
 import { useQuizStore } from '@/stores/quiz'
@@ -179,8 +180,8 @@ const currentAnswers = computed(() => {
 
 const isCorrect = computed(() => {
   if (!currentQuestion.value || !showResult.value) return false
-  const correctAnswer = currentQuestion.value.answer.sort()
-  const userAnswer = currentAnswers.value.sort()
+  const correctAnswer = [...currentQuestion.value.answer].sort()
+  const userAnswer = [...currentAnswers.value].sort()
   return arraysEqual(correctAnswer, userAnswer)
 })
 
@@ -216,20 +217,27 @@ function handleSelect(answer: string) {
   quizStore.setAnswer(questionId, current)
 }
 
-function confirmAnswer() {
+async function confirmAnswer() {
   if (currentAnswers.value.length === 0) {
     uni.showToast({ title: '请选择答案', icon: 'none' })
     return
   }
   showResult.value = true
 
-  // 实时错题收集：答错立即记录到错题本
-  if (!isCorrect.value && currentQuestion.value && userStore.openid && libraryId.value) {
-    wrongStore.addWrongQuestion(
-      userStore.openid,
-      currentQuestion.value._id || '',
-      [...currentAnswers.value].sort()
-    )
+  // 实时错题收集：答错立即记录到对应题库的错题集
+  // libraryId 优先从URL参数获取，兜底从题目数据获取（错题模式可能没有URL参数）
+  const effectiveLibraryId = libraryId.value || currentQuestion.value?.libraryId || ''
+  if (!isCorrect.value && currentQuestion.value && effectiveLibraryId) {
+    try {
+      await wrongStore.addWrongQuestion(
+        userStore.openid!,
+        currentQuestion.value._id || '',
+        [...currentAnswers.value].sort(),
+        effectiveLibraryId
+      )
+    } catch (e) {
+      console.error('实时记录错题失败', e)
+    }
   }
 }
 
@@ -316,11 +324,14 @@ function retryLoad() {
  * 加载题目数据（正常模式/错题模式）
  */
 async function loadQuestionsForMode() {
+  // 确保登录完成（所有模式都需要 openid 用于错题实时记录）
+  if (!userStore.openid) {
+    await userStore.doLogin()
+  }
+
   if (mode.value === 'wrong') {
-    if (!userStore.openid) {
-      await userStore.doLogin()
-    }
-    const wrongDetails = await wrongStore.getWrongQuestionDetails(userStore.openid!)
+    // 错题模式支持按题库筛选：有 libraryId 则只加载该题库的错题
+    const wrongDetails = await wrongStore.getWrongQuestionDetails(userStore.openid!, libraryId.value || undefined)
     const questions = wrongDetails.map(w => w.question)
     quizStore.initQuiz(questions, 'wrong')
     // 错题模式不保存进度
@@ -382,6 +393,13 @@ function handleCancelResume() {
 
 onMounted(() => {
   loadQuizData()
+})
+
+// 页面卸载时自动保存刷题进度（仅顺序练习和随机练习模式）
+onUnload(() => {
+  if (mode.value !== 'wrong' && libraryId.value && quizStore.questions.length > 0 && !quizStore.isFinished) {
+    quizStore.saveProgress()
+  }
 })
 </script>
 
