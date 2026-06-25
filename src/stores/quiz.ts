@@ -22,7 +22,8 @@ export const useQuizStore = defineStore('quiz', () => {
     answers.value = {}
     startTime.value = Date.now()
     isFinished.value = false
-    saveProgress()
+    // 注意：不在 initQuiz 里调用 saveProgress()
+    // 由调用方（quiz/index.vue）在需要时显式保存，避免覆盖旧进度或在错题模式下误存
   }
 
   function setAnswer(questionId: string, userAnswer: string[]) {
@@ -343,6 +344,7 @@ export const useQuizStore = defineStore('quiz', () => {
     finishQuiz,
     loadProgress,
     savedProgressExists,
+    saveProgress,
     calculateScore,
     saveResults
   }

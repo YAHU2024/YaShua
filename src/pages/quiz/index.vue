@@ -323,6 +323,7 @@ async function loadQuestionsForMode() {
     const wrongDetails = await wrongStore.getWrongQuestionDetails(userStore.openid!)
     const questions = wrongDetails.map(w => w.question)
     quizStore.initQuiz(questions, 'wrong')
+    // 错题模式不保存进度
   } else if (libraryId.value) {
     const questions = await libraryStore.getQuestions(libraryId.value)
     if (questions.length === 0) {
@@ -332,6 +333,10 @@ async function loadQuestionsForMode() {
       }
     }
     quizStore.initQuiz(questions, mode.value)
+    // 新开始后立即保存初始进度（currentIndex=0, answers={}）
+    if (questions.length > 0) {
+      quizStore.saveProgress()
+    }
 
     // 如有 targetQuestionId，跳转到指定题目
     if (targetQuestionId.value && quizStore.questions.length > 0) {
@@ -350,14 +355,10 @@ function handleResume() {
   const saved = savedProgressData.value
   if (!saved) return
 
-  quizStore.initQuiz(saved.questions, saved.mode)
-  quizStore.goToQuestion(saved.currentIndex)
-  // 恢复答案
-  for (const [qId, ans] of Object.entries(saved.answers)) {
-    quizStore.setAnswer(qId, ans)
-  }
+  // 直接从 store 恢复完整状态，不走 initQuiz（避免重置 answers 和覆盖进度）
+  quizStore.loadProgress(libraryId.value, mode.value)
   showResumeDialog.value = false
-  clearQuizProgress(libraryId.value, mode.value)
+  // 进度继续，不清除，下次还可以恢复
 }
 
 /**

@@ -18,3 +18,7 @@
 - 云集合安全规则需设为 `"read": true`（题库/题目为公开学习内容）
 - URL 参数传递 libraryId 时使用 `encodeURIComponent`/`decodeURIComponent`
 - 页面 onMounted 需先调用 `ensureCloudReady()` 等待云初始化完成
+- 刷题进度用复合键 `quiz_progress_{libraryId}_{mode}` 存储，不同题库/模式完全隔离
+- 错题收集为实时逐题记录（confirmAnswer 答错即写入），同时保留交卷时的批量写入作为兜底
+- 进入练习时检测上次进度，弹窗选择继续/重来/返回（错题模式不支持恢复）
+- Git 基线：v1.0-baseline（16b115c），**切勿与 c498efec (origin/main) 合并**，会导致本地优化丢失
