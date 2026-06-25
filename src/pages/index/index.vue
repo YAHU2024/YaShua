@@ -21,8 +21,10 @@
       <view class="stats-card">
         <text class="stats-card-title">今日学习进度</text>
         <CircularProgress
+          ref="circularProgressRef"
           :value="statsStore.todayQuestions"
-          :total="Math.max(statsStore.todayQuestions, 1)"
+          :total="statsStore.dailyGoal"
+          :accuracy="statsStore.getTodayAccuracy()"
           label="已完成"
           sub-label="今日正确率"
         />
@@ -138,7 +140,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, computed } from 'vue'
+import { ref, onMounted, computed, nextTick } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import CircularProgress from '@/components/CircularProgress.vue'
 import EmptyState from '@/components/EmptyState.vue'
@@ -154,6 +156,8 @@ const userStore = useUserStore()
 const libraryStore = useLibraryStore()
 const statsStore = useStatsStore()
 const wrongStore = useWrongStore()
+
+const circularProgressRef = ref()
 
 const libraries = computed(() => libraryStore.libraries)
 
@@ -179,6 +183,11 @@ onShow(async () => {
   if (!userStore.openid) {
     await userStore.doLogin()
   }
+  // 页面从后台恢复时强制重绘环形进度盘
+  // 原因：答题时首页在后台，requestAnimationFrame 不触发，Canvas 和数字动画卡在第一帧
+  nextTick(() => {
+    circularProgressRef.value?.redraw()
+  })
 })
 
 async function startQuiz(mode: 'sequence' | 'random' | 'wrong') {

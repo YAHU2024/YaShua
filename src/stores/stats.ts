@@ -11,6 +11,18 @@ export const useStatsStore = defineStore('stats', () => {
   const todayQuestions = ref(0)
   const todayCorrect = ref(0)
 
+  // 每日目标题数（用户可在设置页自定义，纯本地偏好）
+  const dailyGoal = ref(20)
+  try {
+    const saved = uni.getStorageSync('daily_goal')
+    if (saved && typeof saved === 'number') dailyGoal.value = saved
+  } catch { /* 静默降级 */ }
+
+  function setDailyGoal(goal: number) {
+    dailyGoal.value = goal
+    try { uni.setStorageSync('daily_goal', goal) } catch { /* 静默降级 */ }
+  }
+
   async function loadStats(openid: string) {
     // 云不可用或本地模式 → 从本地存储读取
     if (!isCloudAvailable() || openid.startsWith('local_')) {
@@ -97,7 +109,9 @@ export const useStatsStore = defineStore('stats', () => {
     correctCount,
     todayQuestions,
     todayCorrect,
+    dailyGoal,
     loadStats,
+    setDailyGoal,
     getAccuracy,
     getTodayAccuracy
   }

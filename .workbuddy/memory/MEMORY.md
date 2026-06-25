@@ -23,3 +23,7 @@
 - 进入练习时检测上次进度，弹窗选择继续/重来/返回（错题模式不支持恢复）
 - Git 基线：v1.0-baseline（16b115c），**切勿与 c498efec (origin/main) 合并**，会导致本地优化丢失
 - project.config.json 已设置 `ignoreDevUnusedFiles: false` + `ignoreUploadUnusedFiles: false`，禁用微信开发者工具"过滤无依赖文件"功能（uni-app 的 `Math||()` 惰性标记会被误判为死代码）
+- Canvas 2D 绘制：`ctx.scale(dpr, dpr)` 后坐标系为 CSS 像素，不能用 rpx 数值作为绘制坐标。需在 `initCanvas` 中用 `res[0].width/height` 保存实际 CSS 尺寸供 drawRing 使用，半径/线宽按比例计算
+- **微信小程序没有全局 `requestAnimationFrame` / `cancelAnimationFrame`**：必须用 `canvasNode.requestAnimationFrame()` / `canvasNode.cancelAnimationFrame()`（Canvas 2D 节点方法）。canvasNode 未就绪时降级到 `setTimeout(cb, 1000/60)` / `clearTimeout`。直接调用全局 RAF 会报 `TypeError: requestAnimationFrame is not a function`，导致整个 Canvas 绘制和数字动画崩溃
+- Canvas 动画在页面后台时可能未正常完成，组件应通过 `defineExpose` 暴露 `redraw()` 方法，父页面在 `onShow` 中调用强制重绘
+- 每日目标（dailyGoal）存储在 statsStore，本地 storage 键 `daily_goal`，默认 20 题，用户可在设置页自定义（纯本地偏好，不存云端）

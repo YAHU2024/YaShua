@@ -31,6 +31,19 @@
       </view>
 
       <view class="section">
+        <view class="section-title">学习设置</view>
+        <view class="setting-list">
+          <view class="setting-item" @click="setDailyGoal">
+            <view class="setting-info">
+              <text class="setting-label">每日目标</text>
+              <text class="setting-value">{{ statsStore.dailyGoal }} 题/天</text>
+            </view>
+            <view class="setting-arrow">›</view>
+          </view>
+        </view>
+      </view>
+
+      <view class="section">
         <view class="section-title">数据管理</view>
         <view class="setting-list">
           <view class="setting-item" @click="clearCache">
@@ -66,6 +79,20 @@
 
 <script setup lang="ts">
 import NavBar from '@/components/NavBar.vue'
+import { useStatsStore } from '@/stores/stats'
+
+const statsStore = useStatsStore()
+
+function setDailyGoal() {
+  uni.showActionSheet({
+    itemList: ['10 题/天', '20 题/天', '30 题/天', '50 题/天', '100 题/天'],
+    success: (res) => {
+      const goals = [10, 20, 30, 50, 100]
+      statsStore.setDailyGoal(goals[res.tapIndex])
+      uni.showToast({ title: '设置成功', icon: 'success' })
+    }
+  })
+}
 
 function showAbout() {
   uni.showModal({
