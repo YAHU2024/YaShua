@@ -57,6 +57,14 @@ function handleClick() {
   font-weight: $font-weight-medium;
   border-radius: $radius-lg;
   transition: opacity $duration-instant, transform $duration-instant;
+  // 硬件加速：提升至独立合成层，确保圆角+阴影渲染不被父容器裁剪
+  transform: translateZ(0);
+
+  // 重置微信小程序 button 默认伪元素边框（修复圆角露白）
+  &::after {
+    border: none;
+    display: none;          // 彻底隐藏而非仅清空边框
+  }
 
   &:active:not([disabled]) {
     transform: scale(0.97);

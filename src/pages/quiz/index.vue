@@ -15,8 +15,6 @@
           :question="currentQuestion!"
           :selected-answers="currentAnswers"
           :show-result="showResult"
-          :question-number="quizStore.currentIndex + 1"
-          :total="quizStore.totalQuestions()"
           @select="handleSelect"
         />
       </scroll-view>
@@ -28,35 +26,39 @@
       </view>
 
       <view class="action-bar">
-        <BaseButton 
-          variant="secondary"
+        <BaseButton
+          variant="outline"
           size="lg"
-          class="action-btn"
+          block
+          class="action-btn action-btn-prev"
           :disabled="quizStore.currentIndex === 0"
           @click="prevQuestion"
         >上一题</BaseButton>
-        
+
         <BaseButton
-          v-if="!showResult" 
+          v-if="!showResult"
           variant="primary"
           size="lg"
+          block
           class="action-btn"
           :loading="confirming"
           @click="confirmAnswer"
         >确认答案</BaseButton>
-        
+
         <BaseButton
-          v-else-if="quizStore.currentIndex < quizStore.totalQuestions() - 1" 
+          v-else-if="quizStore.currentIndex < quizStore.totalQuestions() - 1"
           variant="primary"
           size="lg"
+          block
           class="action-btn"
           @click="nextQuestion"
         >下一题</BaseButton>
-        
+
         <BaseButton
-          v-else 
+          v-else
           variant="primary"
           size="lg"
+          block
           class="action-btn"
           @click="submitQuiz"
         >提交试卷</BaseButton>
@@ -399,6 +401,7 @@ onUnload(() => {
   display: flex;
   flex-direction: column;
   padding: $space-lg;
+  padding-bottom: 0;
 }
 
 .progress-section {
@@ -406,16 +409,16 @@ onUnload(() => {
 }
 
 .progress-bar {
-  height: 12rpx;
-  background: $color-border-light;
-  border-radius: 6rpx;
+  height: 6rpx;
+  background: rgba(74, 71, 163, 0.08);
+  border-radius: 4rpx;
   overflow: hidden;
 }
 
 .progress-fill {
   height: 100%;
   background: $gradient-primary;
-  border-radius: 6rpx;
+  border-radius: 4rpx;
   transition: width $duration-base $ease-default;
 }
 
@@ -430,6 +433,7 @@ onUnload(() => {
 .question-scroll {
   flex: 1;
   height: 0;
+  padding-bottom: 160rpx;
 }
 
 .result-tip {
@@ -450,13 +454,35 @@ onUnload(() => {
 }
 
 .action-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
   display: flex;
   gap: $space-md;
-  padding: $space-lg 0;
+  padding: $space-lg;
+  padding-bottom: calc($space-lg + env(safe-area-inset-bottom));
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.85) 15%,
+    rgba(255, 255, 255, 0.95) 100%
+  );
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 -4rpx 20rpx rgba(0, 0, 0, 0.02);
+  z-index: 100;
 }
 
 .action-btn {
   flex: 1;
+  height: 88rpx;
+  box-sizing: border-box;
+}
+
+// 主操作按钮（确认答案/下一题/提交试卷）— 紫色外阴影
+.action-btn:not(.action-btn-prev) {
+  box-shadow: $shadow-btn-confirm;
 }
 
 // 恢复进度弹窗

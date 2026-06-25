@@ -2,7 +2,6 @@
   <view class="question-card">
     <view class="question-type">
       <text class="type-tag" :class="typeClass">{{ typeText }}</text>
-      <text class="question-number">{{ questionNumber }}/{{ total }}</text>
     </view>
     <view class="question-content">
       <text>{{ question.content }}</text>
@@ -42,8 +41,6 @@ const props = defineProps<{
   question: Question
   selectedAnswers: string[]
   showResult?: boolean
-  questionNumber?: number
-  total?: number
   disabled?: boolean
 }>()
 
@@ -112,99 +109,107 @@ function handleSelect(option: string) {
 <style lang="scss" scoped>
 @import '@/styles/tokens/_index.scss';
 
+// ============ 题目卡片容器 — 微立体悬浮 ============
 .question-card {
   background: $color-bg-card;
   border-radius: $radius-xl;
   padding: $space-xl;
   margin-bottom: $space-lg;
-  box-shadow: $shadow-lg;
+  box-shadow: 0 12rpx 40rpx rgba(0, 0, 0, 0.03);
 }
 
+// ============ 题型标签区域 ============
 .question-type {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: $space-lg;
-}
-
-.type-tag {
-  padding: $space-xs $space-md;
-  border-radius: $radius-full;
-  font-size: $font-size-sm;
-  font-weight: $font-weight-medium;
-  
-  &.single {
-    background: $color-info-bg;
-    color: $color-info;
-  }
-  
-  &.multiple {
-    background: $color-success-bg;
-    color: $color-success;
-  }
-  
-  &.judge {
-    background: $color-warning-bg;
-    color: $color-warning;
-  }
-}
-
-.question-number {
-  font-size: $font-size-base;
-  color: $color-text-tertiary;
-}
-
-.question-content {
-  font-size: $font-size-xl;
-  color: $color-text-primary;
-  line-height: $line-height-relaxed;
   margin-bottom: $space-xl;
 }
 
+// 圆角矩形标签（非胶囊形）
+.type-tag {
+  padding: 8rpx 20rpx;
+  border-radius: $radius-sm;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  letter-spacing: 0.5rpx;
+  
+  &.single {
+    background: $color-tag-single-bg;
+    color: $color-primary;
+  }
+  
+  &.multiple {
+    background: $color-tag-multiple-bg;
+    color: #389e0d;
+  }
+  
+  &.judge {
+    background: $color-tag-judge-bg;
+    color: #d46b08;
+  }
+}
+
+// ============ 题目正文 ============
+.question-content {
+  font-size: $font-size-xl;
+  color: $color-text-primary;
+  line-height: 1.6;
+  margin-bottom: $space-2xl;
+}
+
+// ============ 选项列表 ============
 .options-list {
   display: flex;
   flex-direction: column;
   gap: $space-md;
 }
 
+// ============ 选项卡片 — 三级状态重构 ============
 .option-item {
   display: flex;
   align-items: center;
   padding: $space-lg;
-  background: $color-bg-input;
+  background: $color-option-bg;
   border-radius: $radius-lg;
-  border: 2rpx solid transparent;
-  transition: background $duration-fast, border-color $duration-fast, transform $duration-instant;
+  border: 1px solid $color-option-border;
+  transition: all $duration-fast $ease-default;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.02);
   
+  // 点击缩放反馈
   &:active:not(.correct):not(.wrong) {
-    transform: scale(0.99);
-    background: #f0f1f2;
+    transform: scale(0.98);
   }
   
+  // 已选中态 — 淡紫背景 + 半透明紫边框
   &.selected {
-    background: $color-primary-light;
-    border-color: $color-primary;
+    background: $color-option-selected-bg;
+    border-color: $color-option-selected-border;
+    box-shadow: none;
   }
   
+  // 正确态 — 绿色背景 + 弹性脉冲
   &.correct {
     background: $color-success-bg;
-    border-color: $color-success;
+    border-color: $color-success-border;
+    box-shadow: none;
     animation: pulseCorrect $duration-slow $ease-bounce;
   }
   
+  // 错误态 — 红色背景 + 抖动
   &.wrong {
     background: $color-error-bg;
-    border-color: $color-error;
+    border-color: $color-error-border;
+    box-shadow: none;
     animation: shake $duration-slow $ease-out;
   }
 }
 
+// ============ 选项标记圆圈 — 渐变升级 ============
 .option-marker {
   width: 56rpx;
   height: 56rpx;
   border-radius: $radius-full;
-  background: $color-bg-card;
-  border: 2rpx solid $color-border-input;
+  background: $color-option-marker-bg;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -213,33 +218,34 @@ function handleSelect(option: string) {
   color: $color-text-secondary;
   margin-right: $space-md;
   flex-shrink: 0;
-  transition: all $duration-fast;
+  transition: all $duration-fast $ease-default;
   
+  // 选中态 — 渐变深紫 + 白色文字 + 内阴影
   .selected & {
-    background: $color-primary;
-    border-color: $color-primary;
+    background: $gradient-primary;
     color: $color-text-inverse;
+    box-shadow: $color-option-selected-marker-shadow;
   }
   
   .correct & {
-    background: $color-success;
-    border-color: $color-success;
+    background: $gradient-success;
     color: $color-text-inverse;
   }
   
   .wrong & {
     background: $color-error;
-    border-color: $color-error;
     color: $color-text-inverse;
   }
 }
 
+// ============ 选项文字 ============
 .option-text {
   flex: 1;
   font-size: $font-size-lg;
   color: $color-text-primary;
 }
 
+// ============ 正确/错误图标 ============
 .option-icon {
   width: 48rpx;
   height: 48rpx;
@@ -262,6 +268,7 @@ function handleSelect(option: string) {
   }
 }
 
+// ============ 解析区域 ============
 .analysis-section {
   margin-top: $space-xl;
   padding-top: $space-xl;
