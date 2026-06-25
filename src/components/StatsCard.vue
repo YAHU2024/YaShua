@@ -5,11 +5,11 @@
     </view>
     <view class="stats-content">
       <view class="stat-item">
-        <text class="stat-value">{{ value }}</text>
+        <text class="stat-value animated">{{ value }}</text>
         <text class="stat-label">{{ label }}</text>
       </view>
       <view v-if="subValue !== undefined" class="stat-item sub-item">
-        <text class="stat-value">{{ subValue }}</text>
+        <text class="stat-value animated">{{ subValue }}</text>
         <text class="stat-label">{{ subLabel }}</text>
       </view>
     </view>
@@ -43,19 +43,21 @@ watch(() => props.subValue, (newVal) => {
 </script>
 
 <style lang="scss" scoped>
+@import '@/styles/tokens/_index.scss';
+
 .stats-card {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 16px;
-  padding: 20px;
-  color: #fff;
+  background: $gradient-primary;
+  border-radius: $radius-xl;
+  padding: $space-xl;
+  color: $color-text-inverse;
 }
 
 .stats-header {
-  margin-bottom: 16px;
+  margin-bottom: $space-lg;
 }
 
 .stats-title {
-  font-size: 14px;
+  font-size: $font-size-base;
   opacity: 0.8;
 }
 
@@ -68,51 +70,51 @@ watch(() => props.subValue, (newVal) => {
 .stat-item {
   &.sub-item {
     .stat-value {
-      font-size: 24px;
+      font-size: 48rpx;
     }
-    
     .stat-label {
-      font-size: 12px;
+      font-size: $font-size-sm;
     }
   }
 }
 
 .stat-value {
   display: block;
-  font-size: 36px;
-  font-weight: 700;
+  font-size: 72rpx;
+  font-weight: $font-weight-bold;
+  animation: countUp $duration-slow $ease-out;
 }
 
 .stat-label {
   display: block;
-  font-size: 13px;
+  font-size: $font-size-xs;
   opacity: 0.8;
-  margin-top: 4px;
+  margin-top: $space-xs;
 }
 
 .progress-section {
-  margin-top: 16px;
+  margin-top: $space-lg;
 }
 
 .progress-bar {
-  height: 6px;
+  height: 12rpx;
   background: rgba(255, 255, 255, 0.3);
-  border-radius: 3px;
+  border-radius: 6rpx;
   overflow: hidden;
 }
 
 .progress-fill {
   height: 100%;
-  background: #fff;
-  border-radius: 3px;
-  transition: width 0.3s;
+  background: $color-text-inverse;
+  border-radius: 6rpx;
+  transition: width $duration-base $ease-default;
 }
 
 .progress-text {
   display: block;
   text-align: right;
-  font-size: 12px;
-  margin-top: 4px;
+  font-size: $font-size-sm;
+  margin-top: $space-xs;
   opacity: 0.8;
 }
 </style>

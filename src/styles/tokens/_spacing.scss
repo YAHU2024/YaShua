@@ -1,0 +1,30 @@
+// ==========================================
+// 智慧刷题 — 间距系统（8点网格，4px 基准）
+// ==========================================
+
+// ============ 间距基元（基于 rpx） ============
+$space-xs: 8rpx;     // 4px  — 最小间距（标签内边距、图标微调）
+$space-sm: 16rpx;    // 8px  — 小间距（元素间微间距）
+$space-md: 24rpx;    // 12px — 中等间距（列表 gap、标签间距）
+$space-lg: 32rpx;    // 16px — 标准间距（页面水平边距、卡片内边距）
+$space-xl: 40rpx;    // 20px — 大间距（section 内边距）
+$space-2xl: 48rpx;   // 24px — 超大间距（弹窗内边距、标题间距）
+$space-3xl: 64rpx;   // 32px — 巨大间距（Header padding）
+
+// ============ 语义化间距 ============
+$page-horizontal-padding: $space-lg;   // 页面水平边距，统一为 32rpx
+$page-bottom-padding: 160rpx;          // 页面底部留白（为底部栏或 TabBar 留空）
+$card-padding: $space-xl;              // 卡片标准内边距 40rpx
+$card-padding-sm: $space-lg;           // 小卡片内边距 32rpx
+$list-gap: $space-md;                  // 列表项间距 24rpx
+$section-gap: $space-xl;               // 区块间距 40rpx
+$content-padding: $space-lg;           // 内容区标准内边距
+
+// ============ 触控区域 ============
+$touch-target-min: 88rpx;              // 最小触控区 44px（iOS HIG / WCAG 2.5.5）
+
+// ============ 按钮尺寸 ============
+$btn-height-sm: 72rpx;    // 36px — 小按钮
+$btn-height-md: 88rpx;    // 44px — 默认按钮
+$btn-height-lg: 96rpx;    // 48px — 大按钮（主要操作）
+$btn-height-xl: 104rpx;   // 52px — 超大按钮（首页入口）

@@ -117,46 +117,48 @@ function contactUs() {
 </script>
 
 <style lang="scss" scoped>
+@import '@/styles/tokens/_index.scss';
+
 .page {
   min-height: 100vh;
-  background: #f5f7fa;
+  background: $color-bg-page;
 }
 
 .content {
-  padding: 20px;
+  padding: $space-xl;
 }
 
 .section {
-  background: #fff;
-  border-radius: 16px;
-  margin-bottom: 20px;
+  background: $color-bg-card;
+  border-radius: $radius-xl;
+  margin-bottom: $section-gap;
   overflow: hidden;
 }
 
 .section-title {
-  padding: 16px 20px;
-  font-size: 14px;
-  font-weight: 600;
-  color: #999;
-  background: #f8f9fa;
+  padding: $space-lg $space-xl;
+  font-size: $font-size-base;
+  font-weight: $font-weight-semibold;
+  color: $color-text-tertiary;
+  background: $color-bg-input;
 }
 
 .setting-list {
-  padding: 0 12px;
+  padding: 0 $space-md;
 }
 
 .setting-item {
   display: flex;
   align-items: center;
-  padding: 16px 8px;
-  border-bottom: 1px solid #f0f0f0;
-  
+  padding: $space-lg $space-sm;
+  border-bottom: 1rpx solid $color-border-base;
+
   &:last-child {
     border-bottom: none;
   }
-  
+
   &:active {
-    background: #f8f9fa;
+    background: $color-bg-input;
   }
 }
 
@@ -168,34 +170,35 @@ function contactUs() {
 }
 
 .setting-label {
-  font-size: 16px;
-  color: #333;
+  font-size: $font-size-lg;
+  color: $color-text-primary;
 }
 
 .setting-value {
-  font-size: 14px;
-  color: #999;
+  font-size: $font-size-base;
+  color: $color-text-tertiary;
 }
 
 .setting-arrow {
-  font-size: 18px;
-  color: #ccc;
+  font-size: $font-size-xl;
+  color: $color-text-disabled;
+  margin-left: $space-sm;
 }
 
 .footer {
   text-align: center;
-  padding: 40px 20px;
+  padding: 80rpx $space-xl;
 }
 
 .footer-text {
   display: block;
-  font-size: 14px;
-  color: #666;
-  margin-bottom: 8px;
+  font-size: $font-size-base;
+  color: $color-text-secondary;
+  margin-bottom: $space-sm;
 }
 
 .footer-copyright {
-  font-size: 12px;
-  color: #999;
+  font-size: $font-size-sm;
+  color: $color-text-tertiary;
 }
 </style>

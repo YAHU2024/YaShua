@@ -28,51 +28,57 @@
       </view>
 
       <view class="action-bar">
-        <button 
-          class="action-btn prev" 
+        <BaseButton 
+          variant="secondary"
+          size="lg"
+          class="action-btn"
           :disabled="quizStore.currentIndex === 0"
           @click="prevQuestion"
-        >
-          <text>上一题</text>
-        </button>
+        >上一题</BaseButton>
         
-        <button 
+        <BaseButton
           v-if="!showResult" 
-          class="action-btn confirm"
+          variant="primary"
+          size="lg"
+          class="action-btn"
+          :loading="confirming"
           @click="confirmAnswer"
-        >
-          <text>确认答案</text>
-        </button>
+        >确认答案</BaseButton>
         
-        <button 
+        <BaseButton
           v-else-if="quizStore.currentIndex < quizStore.totalQuestions() - 1" 
-          class="action-btn next"
+          variant="primary"
+          size="lg"
+          class="action-btn"
           @click="nextQuestion"
-        >
-          <text>下一题</text>
-        </button>
+        >下一题</BaseButton>
         
-        <button 
+        <BaseButton
           v-else 
-          class="action-btn submit"
+          variant="primary"
+          size="lg"
+          class="action-btn"
           @click="submitQuiz"
-        >
-          <text>提交试卷</text>
-        </button>
+        >提交试卷</BaseButton>
       </view>
     </view>
 
-    <view v-if="isLoading" class="loading-state">
-      <view class="loading-icon">⏳</view>
-      <text class="loading-text">加载中...</text>
-    </view>
+    <LoadingState v-if="isLoading" text="加载中..." />
 
-    <view v-if="!isLoading && questions.length === 0" class="empty-state">
-      <text class="empty-icon">📝</text>
-      <text class="empty-title">{{ errorMsg || '暂无题目' }}</text>
-      <text class="empty-desc">{{ errorMsg ? '请检查网络后重试' : '该题库暂无题目或暂无错题' }}</text>
-      <button v-if="errorMsg" class="retry-btn" @click="retryLoad">重新加载</button>
-    </view>
+    <EmptyState
+      v-if="!isLoading && questions.length === 0 && !errorMsg"
+      icon="📝"
+      :title="'暂无题目'"
+      description="该题库暂无题目或暂无错题"
+    />
+
+    <ErrorState
+      v-if="!isLoading && errorMsg"
+      :message="errorMsg"
+      detail="请检查网络后重试"
+      show-retry
+      @retry="retryLoad"
+    />
 
     <!-- 恢复进度弹窗 -->
     <view v-if="showResumeDialog" class="resume-overlay" @click="handleCancelResume">
@@ -90,20 +96,14 @@
           </view>
         </view>
         <view class="resume-dialog-actions">
-          <button class="resume-btn primary" @click="handleResume">
-            <text>继续上次进度</text>
-          </button>
-          <button class="resume-btn secondary" @click="handleRestart">
-            <text>重新开始</text>
-          </button>
-          <button class="resume-btn cancel" @click="handleCancelResume">
-            <text>返回</text>
-          </button>
+          <BaseButton variant="primary" size="lg" block @click="handleResume">继续上次进度</BaseButton>
+          <BaseButton variant="secondary" size="lg" block @click="handleRestart">重新开始</BaseButton>
+          <BaseButton variant="ghost" size="lg" block @click="handleCancelResume">返回</BaseButton>
         </view>
       </view>
     </view>
 
-    <view v-if="showScore" class="score-modal" @click="closeScore">
+    <view v-if="showScore" class="score-overlay" @click="closeScore">
       <view class="score-content" @click.stop>
         <view class="score-icon">{{ scoreIcon }}</view>
         <text class="score-title">答题完成</text>
@@ -121,9 +121,7 @@
             <text class="stat-value wrong">{{ scoreResult.total - scoreResult.correct }}</text>
           </view>
         </view>
-        <button class="score-btn" @click="closeScore">
-          <text>完成</text>
-        </button>
+        <BaseButton variant="primary" size="lg" block @click="closeScore">完成</BaseButton>
       </view>
     </view>
   </view>
@@ -134,12 +132,17 @@ import { ref, computed, onMounted } from 'vue'
 import { onUnload } from '@dcloudio/uni-app'
 import NavBar from '@/components/NavBar.vue'
 import QuestionCard from '@/components/QuestionCard.vue'
+import LoadingState from '@/components/LoadingState.vue'
+import EmptyState from '@/components/EmptyState.vue'
+import ErrorState from '@/components/ErrorState.vue'
+import BaseButton from '@/components/BaseButton.vue'
 import { useQuizStore } from '@/stores/quiz'
 import { useLibraryStore } from '@/stores/library'
 import { useWrongStore } from '@/stores/wrong'
 import { useUserStore } from '@/stores/user'
 import { ensureCloudReady } from '@/utils/cloud'
 import { getQuizProgress, clearQuizProgress } from '@/utils/storage'
+import { vibrateShort } from '@/utils/haptics'
 import type { Question, QuizProgress } from '@/types'
 
 const quizStore = useQuizStore()
@@ -150,6 +153,7 @@ const userStore = useUserStore()
 const isLoading = ref(true)
 const showResult = ref(false)
 const showScore = ref(false)
+const confirming = ref(false)
 const scoreResult = ref({ correct: 0, total: 0 })
 const errorMsg = ref('')
 const showResumeDialog = ref(false)
@@ -215,6 +219,7 @@ function handleSelect(answer: string) {
   }
   
   quizStore.setAnswer(questionId, current)
+  vibrateShort('light')
 }
 
 async function confirmAnswer() {
@@ -222,25 +227,29 @@ async function confirmAnswer() {
     uni.showToast({ title: '请选择答案', icon: 'none' })
     return
   }
-  showResult.value = true
+  confirming.value = true
+  try {
+    showResult.value = true
+    quizStore.recordSingleAnswer(isCorrect.value)
 
-  // 每题实时统计：更新今日学习数据（不依赖交卷，确保中途返回也能看到）
-  quizStore.recordSingleAnswer(isCorrect.value)
+    // 触觉反馈
+    vibrateShort(isCorrect.value ? 'medium' : 'heavy')
 
-  // 实时错题收集：答错立即记录到对应题库的错题集
-  // libraryId 优先从URL参数获取，兜底从题目数据获取（错题模式可能没有URL参数）
-  const effectiveLibraryId = libraryId.value || currentQuestion.value?.libraryId || ''
-  if (!isCorrect.value && currentQuestion.value && effectiveLibraryId) {
-    try {
-      await wrongStore.addWrongQuestion(
-        userStore.openid!,
-        currentQuestion.value._id || '',
-        [...currentAnswers.value].sort(),
-        effectiveLibraryId
-      )
-    } catch (e) {
-      console.error('实时记录错题失败', e)
+    const effectiveLibraryId = libraryId.value || currentQuestion.value?.libraryId || ''
+    if (!isCorrect.value && currentQuestion.value && effectiveLibraryId) {
+      try {
+        await wrongStore.addWrongQuestion(
+          userStore.openid!,
+          currentQuestion.value._id || '',
+          [...currentAnswers.value].sort(),
+          effectiveLibraryId
+        )
+      } catch (e) {
+        console.error('实时记录错题失败', e)
+      }
     }
+  } finally {
+    confirming.value = false
   }
 }
 
@@ -274,17 +283,11 @@ function closeScore() {
   uni.navigateBack()
 }
 
-function closeScoreAndGoHome() {
-  showScore.value = false
-  uni.switchTab({ url: '/pages/index/index' })
-}
-
 async function loadQuizData() {
   isLoading.value = true
   errorMsg.value = ''
 
   try {
-    // 等待云开发初始化完成，避免云 API 在初始化完成前调用导致失败
     await ensureCloudReady()
 
     const pages = getCurrentPages()
@@ -292,25 +295,20 @@ async function loadQuizData() {
     const options = (currentPage as any)?.options || {}
 
     mode.value = (options.mode as 'sequence' | 'random' | 'wrong') || 'sequence'
-    // 解码 URL 参数，处理可能包含特殊字符的 libraryId
     libraryId.value = options.libraryId ? decodeURIComponent(options.libraryId) : ''
     targetQuestionId.value = options.questionId || ''
 
-    // 检测是否有保存的进度（错题模式不支持恢复）
     if (mode.value !== 'wrong' && libraryId.value) {
       const saved = getQuizProgress(libraryId.value, mode.value)
       if (saved && saved.questions && saved.questions.length > 0) {
         savedProgressData.value = saved
-        // 检测题库是否变更：比较保存的题目 ID 与当前题库
         showResumeDialog.value = true
         isLoading.value = false
         return
       }
     }
 
-    // 无进度或错题模式 → 正常加载题目
     await loadQuestionsForMode()
-
     isLoading.value = false
   } catch (e) {
     console.error('加载题目失败', e)
@@ -323,21 +321,15 @@ function retryLoad() {
   loadQuizData()
 }
 
-/**
- * 加载题目数据（正常模式/错题模式）
- */
 async function loadQuestionsForMode() {
-  // 确保登录完成（所有模式都需要 openid 用于错题实时记录）
   if (!userStore.openid) {
     await userStore.doLogin()
   }
 
   if (mode.value === 'wrong') {
-    // 错题模式支持按题库筛选：有 libraryId 则只加载该题库的错题
     const wrongDetails = await wrongStore.getWrongQuestionDetails(userStore.openid!, libraryId.value || undefined)
     const questions = wrongDetails.map(w => w.question)
     quizStore.initQuiz(questions, 'wrong')
-    // 错题模式不保存进度
   } else if (libraryId.value) {
     const questions = await libraryStore.getQuestions(libraryId.value)
     if (questions.length === 0) {
@@ -347,12 +339,10 @@ async function loadQuestionsForMode() {
       }
     }
     quizStore.initQuiz(questions, mode.value)
-    // 新开始后立即保存初始进度（currentIndex=0, answers={}）
     if (questions.length > 0) {
       quizStore.saveProgress()
     }
 
-    // 如有 targetQuestionId，跳转到指定题目
     if (targetQuestionId.value && quizStore.questions.length > 0) {
       const idx = quizStore.questions.findIndex(q => q._id === targetQuestionId.value)
       if (idx !== -1) quizStore.goToQuestion(idx)
@@ -362,22 +352,14 @@ async function loadQuestionsForMode() {
   }
 }
 
-/**
- * 用户选择"继续上次进度"
- */
 function handleResume() {
   const saved = savedProgressData.value
   if (!saved) return
 
-  // 直接从 store 恢复完整状态，不走 initQuiz（避免重置 answers 和覆盖进度）
   quizStore.loadProgress(libraryId.value, mode.value)
   showResumeDialog.value = false
-  // 进度继续，不清除，下次还可以恢复
 }
 
-/**
- * 用户选择"重新开始"
- */
 async function handleRestart() {
   showResumeDialog.value = false
   clearQuizProgress(libraryId.value, mode.value)
@@ -386,9 +368,6 @@ async function handleRestart() {
   isLoading.value = false
 }
 
-/**
- * 用户取消（点返回或遮罩），保留进度不清除
- */
 function handleCancelResume() {
   showResumeDialog.value = false
   uni.navigateBack()
@@ -398,7 +377,6 @@ onMounted(() => {
   loadQuizData()
 })
 
-// 页面卸载时自动保存刷题进度（仅顺序练习和随机练习模式）
 onUnload(() => {
   if (mode.value !== 'wrong' && libraryId.value && quizStore.questions.length > 0 && !quizStore.isFinished) {
     quizStore.saveProgress()
@@ -407,9 +385,11 @@ onUnload(() => {
 </script>
 
 <style lang="scss" scoped>
+@import '@/styles/tokens/_index.scss';
+
 .page {
   min-height: 100vh;
-  background: #f5f7fa;
+  background: $color-bg-page;
   display: flex;
   flex-direction: column;
 }
@@ -418,33 +398,33 @@ onUnload(() => {
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: 16px;
+  padding: $space-lg;
 }
 
 .progress-section {
-  margin-bottom: 16px;
+  margin-bottom: $space-lg;
 }
 
 .progress-bar {
-  height: 6px;
-  background: #e8e8e8;
-  border-radius: 3px;
+  height: 12rpx;
+  background: $color-border-light;
+  border-radius: 6rpx;
   overflow: hidden;
 }
 
 .progress-fill {
   height: 100%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 3px;
-  transition: width 0.3s;
+  background: $gradient-primary;
+  border-radius: 6rpx;
+  transition: width $duration-base $ease-default;
 }
 
 .progress-text {
   display: block;
   text-align: right;
-  font-size: 13px;
-  color: #999;
-  margin-top: 8px;
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+  margin-top: $space-sm;
 }
 
 .question-scroll {
@@ -453,115 +433,30 @@ onUnload(() => {
 }
 
 .result-tip {
-  margin: 16px 0;
-  padding: 12px;
-  border-radius: 12px;
+  margin: $space-lg 0;
+  padding: $space-md;
+  border-radius: $radius-lg;
   text-align: center;
 }
 
 .correct-tip {
-  color: #52c41a;
-  font-weight: 600;
+  color: $color-success;
+  font-weight: $font-weight-semibold;
 }
 
 .wrong-tip {
-  color: #ff4d4f;
-  font-weight: 600;
+  color: $color-error;
+  font-weight: $font-weight-semibold;
 }
 
 .action-bar {
   display: flex;
-  gap: 12px;
-  padding: 16px 0;
+  gap: $space-md;
+  padding: $space-lg 0;
 }
 
 .action-btn {
   flex: 1;
-  height: 52px;
-  border-radius: 12px;
-  font-size: 16px;
-  font-weight: 500;
-  border: none;
-  
-  &.prev {
-    background: #f5f5f5;
-    color: #666;
-    
-    &[disabled] {
-      opacity: 0.4;
-    }
-  }
-  
-  &.confirm {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: #fff;
-  }
-  
-  &.next {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: #fff;
-  }
-  
-  &.submit {
-    background: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);
-    color: #fff;
-  }
-}
-
-.loading-state {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-}
-
-.loading-icon {
-  font-size: 48px;
-  margin-bottom: 16px;
-}
-
-.loading-text {
-  font-size: 16px;
-  color: #999;
-}
-
-.empty-state {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 40px;
-}
-
-.empty-icon {
-  font-size: 64px;
-  margin-bottom: 16px;
-}
-
-.empty-title {
-  font-size: 18px;
-  font-weight: 600;
-  color: #333;
-  margin-bottom: 8px;
-}
-
-.empty-desc {
-  font-size: 14px;
-  color: #999;
-  margin-bottom: 16px;
-}
-
-.retry-btn {
-  width: 140px;
-  height: 44px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 12px;
-  font-size: 16px;
-  font-weight: 500;
-  color: #fff;
-  border: none;
 }
 
 // 恢复进度弹窗
@@ -571,155 +466,135 @@ onUnload(() => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: $color-bg-mask;
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  padding: 20px;
+  padding: $space-xl;
+  animation: overlayFadeIn $duration-slow $ease-out;
 }
 
 .resume-dialog {
   width: 100%;
-  max-width: 340px;
-  background: #fff;
-  border-radius: 24px;
-  padding: 32px 24px;
+  max-width: 680rpx;
+  background: $color-bg-card;
+  border-radius: $radius-3xl;
+  padding: $space-3xl $space-2xl;
+  animation: modalScaleIn $duration-slow $ease-bounce;
 }
 
 .resume-dialog-title {
   display: block;
-  font-size: 20px;
-  font-weight: 600;
-  color: #333;
+  font-size: $font-size-2xl;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
   text-align: center;
-  margin-bottom: 20px;
+  margin-bottom: $space-xl;
 }
 
 .resume-dialog-body {
-  background: #f8f9fa;
-  border-radius: 12px;
-  padding: 16px;
-  margin-bottom: 24px;
+  background: $color-bg-input;
+  border-radius: $radius-lg;
+  padding: $space-lg;
+  margin-bottom: $space-2xl;
 }
 
 .resume-progress-text {
   display: block;
-  font-size: 15px;
-  color: #555;
+  font-size: $font-size-md;
+  color: $color-text-secondary;
   text-align: center;
 
   & + & {
-    margin-top: 8px;
-    font-size: 13px;
-    color: #999;
+    margin-top: $space-sm;
+    font-size: $font-size-xs;
+    color: $color-text-tertiary;
   }
 }
 
 .resume-warning {
-  margin-top: 12px;
-  padding: 10px;
-  background: #fff7e6;
-  border-radius: 8px;
-  border-left: 3px solid #faad14;
+  margin-top: $space-md;
+  padding: 20rpx;
+  background: $color-warning-bg;
+  border-radius: $radius-md;
+  border-left: 6rpx solid #faad14;
 
   text {
-    font-size: 13px;
+    font-size: 26rpx;
     color: #d48806;
-    line-height: 1.5;
+    line-height: $line-height-base;
   }
 }
 
 .resume-dialog-actions {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 20rpx;
 }
 
-.resume-btn {
-  width: 100%;
-  height: 48px;
-  border-radius: 12px;
-  font-size: 16px;
-  font-weight: 500;
-  border: none;
-
-  &.primary {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: #fff;
-  }
-
-  &.secondary {
-    background: #f5f5f5;
-    color: #666;
-  }
-
-  &.cancel {
-    background: #fff;
-    color: #999;
-    border: 1px solid #e8e8e8;
-  }
-}
-
-.score-modal {
+// 分数弹窗
+.score-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: $color-bg-mask;
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  padding: 20px;
+  padding: $space-xl;
+  animation: overlayFadeIn $duration-slow $ease-out;
 }
 
 .score-content {
   width: 100%;
-  max-width: 320px;
-  background: #fff;
-  border-radius: 24px;
-  padding: 40px 32px;
+  max-width: 640rpx;
+  background: $color-bg-card;
+  border-radius: $radius-3xl;
+  padding: 80rpx $space-3xl;
   text-align: center;
+  animation: modalScaleIn $duration-slow $ease-bounce;
 }
 
 .score-icon {
-  font-size: 64px;
-  margin-bottom: 16px;
+  font-size: 128rpx;
+  margin-bottom: $space-lg;
 }
 
 .score-title {
   display: block;
-  font-size: 20px;
-  font-weight: 600;
-  color: #333;
-  margin-bottom: 24px;
+  font-size: $font-size-2xl;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+  margin-bottom: $space-2xl;
 }
 
 .score-info {
-  margin-bottom: 24px;
+  margin-bottom: $space-2xl;
 }
 
 .score-value {
   display: block;
-  font-size: 48px;
-  font-weight: 700;
-  color: #667eea;
+  font-size: $font-size-display;
+  font-weight: $font-weight-bold;
+  color: $color-primary;
 }
 
 .score-percent {
   display: block;
-  font-size: 16px;
-  color: #999;
-  margin-top: 8px;
+  font-size: $font-size-lg;
+  color: $color-text-tertiary;
+  margin-top: $space-sm;
 }
 
 .score-stats {
-  background: #f8f9fa;
-  border-radius: 12px;
-  padding: 16px;
-  margin-bottom: 24px;
+  background: $color-bg-input;
+  border-radius: $radius-lg;
+  padding: $space-lg;
+  margin-bottom: $space-2xl;
 }
 
 .stat-row {
@@ -728,38 +603,27 @@ onUnload(() => {
   align-items: center;
   
   & + & {
-    margin-top: 12px;
-    padding-top: 12px;
-    border-top: 1px solid #eee;
+    margin-top: $space-md;
+    padding-top: $space-md;
+    border-top: 1rpx solid $color-border-base;
   }
 }
 
 .stat-label {
-  font-size: 14px;
-  color: #666;
+  font-size: $font-size-base;
+  color: $color-text-secondary;
 }
 
 .stat-value {
-  font-size: 18px;
-  font-weight: 600;
+  font-size: $font-size-xl;
+  font-weight: $font-weight-semibold;
   
   &.correct {
-    color: #52c41a;
+    color: $color-success;
   }
   
   &.wrong {
-    color: #ff4d4f;
+    color: $color-error;
   }
-}
-
-.score-btn {
-  width: 100%;
-  height: 48px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 12px;
-  font-size: 16px;
-  font-weight: 500;
-  color: #fff;
-  border: none;
 }
 </style>

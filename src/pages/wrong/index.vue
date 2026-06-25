@@ -3,7 +3,6 @@
     <NavBar title="错题本" />
 
     <view class="content">
-      <!-- 按题库分组的菜单列表 -->
       <view v-if="groupedList.length > 0" class="wrong-groups">
         <view
           v-for="group in groupedList"
@@ -19,11 +18,12 @@
         </view>
       </view>
 
-      <view v-else class="empty-state">
-        <text class="empty-icon">🎉</text>
-        <text class="empty-title">暂无错题</text>
-        <text class="empty-desc">继续加油，保持全对！</text>
-      </view>
+      <EmptyState
+        v-else
+        icon="🎉"
+        title="暂无错题"
+        description="继续加油，保持全对！"
+      />
     </view>
   </view>
 </template>
@@ -32,6 +32,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import NavBar from '@/components/NavBar.vue'
+import EmptyState from '@/components/EmptyState.vue'
 import { useWrongStore } from '@/stores/wrong'
 import { useUserStore } from '@/stores/user'
 import { useLibraryStore } from '@/stores/library'
@@ -43,7 +44,6 @@ const libraryStore = useLibraryStore()
 
 const wrongList = ref<(WrongQuestion & { question: Question })[]>([])
 
-// 错题按题库分组
 interface WrongGroup {
   libraryId: string
   libraryName: string
@@ -103,33 +103,36 @@ function goDetail(group: WrongGroup) {
 </script>
 
 <style lang="scss" scoped>
+@import '@/styles/tokens/_index.scss';
+
 .page {
   min-height: 100vh;
-  background: #f5f7fa;
+  background: $color-bg-page;
 }
 
 .content {
-  padding: 20px;
-  padding-bottom: 40px;
+  padding: $space-xl;
+  padding-bottom: 80rpx;
 }
 
 .wrong-groups {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: $list-gap;
 }
 
 .group-card {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 20px;
-  background: #fff;
-  border-radius: 16px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  padding: $space-lg $space-xl;
+  background: $color-bg-card;
+  border-radius: $radius-xl;
+  box-shadow: $shadow-md;
+  transition: background $duration-instant;
 
   &:active {
-    background: #f9f9f9;
+    background: #fafafa;
   }
 }
 
@@ -139,44 +142,20 @@ function goDetail(group: WrongGroup) {
 }
 
 .group-name {
-  font-size: 17px;
-  font-weight: 600;
-  color: #333;
+  font-size: 34rpx;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
 }
 
 .group-count {
-  font-size: 13px;
-  color: #ff4d4f;
-  margin-top: 6px;
+  font-size: $font-size-xs;
+  color: $color-error;
+  margin-top: 12rpx;
 }
 
 .group-arrow {
-  font-size: 24px;
-  color: #ccc;
+  font-size: 48rpx;
+  color: $color-text-disabled;
   font-weight: 300;
-}
-
-.empty-state {
-  text-align: center;
-  padding: 80px 20px;
-}
-
-.empty-icon {
-  display: block;
-  font-size: 80px;
-  margin-bottom: 20px;
-}
-
-.empty-title {
-  display: block;
-  font-size: 18px;
-  font-weight: 600;
-  color: #333;
-  margin-bottom: 8px;
-}
-
-.empty-desc {
-  font-size: 14px;
-  color: #999;
 }
 </style>

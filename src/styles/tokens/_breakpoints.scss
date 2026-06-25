@@ -1,0 +1,16 @@
+// ==========================================
+// 智慧刷题 — 响应式断点
+// ==========================================
+
+// 断点（供 @media 查询使用）
+$breakpoint-sm: 375px;   // iPhone SE 等小屏
+$breakpoint-md: 414px;   // iPhone 11/12/13 标准屏
+$breakpoint-lg: 768px;   // iPad mini 竖屏 / 大屏横屏
+$breakpoint-xl: 1024px;  // iPad 标准屏
+
+// 最大内容宽度（平板等大屏场景防止内容过度拉伸）
+$content-max-width: 640px;
+
+// ============ Safe Area 变量 ============
+$safe-area-top: env(safe-area-inset-top, 0px);
+$safe-area-bottom: env(safe-area-inset-bottom, 0px);

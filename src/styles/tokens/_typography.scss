@@ -1,0 +1,31 @@
+// ==========================================
+// 智慧刷题 — 字体层级系统
+// ==========================================
+
+// ============ 字体家族 ============
+$font-family-base: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+$font-family-screen: 'PingFang SC', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+
+// ============ 字号层级（8级，基于 rpx） ============
+$font-size-xs: 22rpx;            // 11px — 仅题型标签微文字
+$font-size-sm: 24rpx;            // 12px — 辅助说明、时间戳、统计标签
+$font-size-base: 28rpx;          // 14px — 正文、副标题、描述文字
+$font-size-md: 30rpx;            // 15px — 稍大正文、列表文本
+$font-size-lg: 32rpx;            // 16px — 卡片标题、按钮文字
+$font-size-xl: 36rpx;            // 18px — 页面标题、section 标题
+$font-size-2xl: 40rpx;           // 20px — 弹窗标题、导航栏标题
+$font-size-3xl: 64rpx;           // 32px — 首页品牌标题、大数字
+
+// 特殊展示字号
+$font-size-display: 96rpx;       // 48px — 分数展示、大 emoji
+
+// ============ 字重 ============
+$font-weight-normal: 400;
+$font-weight-medium: 500;
+$font-weight-semibold: 600;
+$font-weight-bold: 700;
+
+// ============ 行高 ============
+$line-height-tight: 1.2;         // 标题、大数字
+$line-height-base: 1.5;          // 正文默认
+$line-height-relaxed: 1.8;       // 解析内容长文本

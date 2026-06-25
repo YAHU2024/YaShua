@@ -17,6 +17,8 @@
           correct: showResult && isCorrectOption(option),
           wrong: showResult && isSelected(option) && !isCorrectOption(option)
         }"
+        :role="question.type === 'multiple' ? 'checkbox' : 'radio'"
+        :aria-checked="isSelected(option)"
         @click="handleSelect(option)"
       >
         <view class="option-marker">{{ getOptionMarker(index) }}</view>
@@ -108,167 +110,177 @@ function handleSelect(option: string) {
 </script>
 
 <style lang="scss" scoped>
+@import '@/styles/tokens/_index.scss';
+
 .question-card {
-  background: #fff;
-  border-radius: 16px;
-  padding: 20px;
-  margin-bottom: 16px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  background: $color-bg-card;
+  border-radius: $radius-xl;
+  padding: $space-xl;
+  margin-bottom: $space-lg;
+  box-shadow: $shadow-lg;
 }
 
 .question-type {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: $space-lg;
 }
 
 .type-tag {
-  padding: 4px 12px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 500;
+  padding: $space-xs $space-md;
+  border-radius: $radius-full;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
   
   &.single {
-    background: #e8f4fd;
-    color: #1890ff;
+    background: $color-info-bg;
+    color: $color-info;
   }
   
   &.multiple {
-    background: #f6ffed;
-    color: #52c41a;
+    background: $color-success-bg;
+    color: $color-success;
   }
   
   &.judge {
-    background: #fff7e6;
-    color: #fa8c16;
+    background: $color-warning-bg;
+    color: $color-warning;
   }
 }
 
 .question-number {
-  font-size: 14px;
-  color: #999;
+  font-size: $font-size-base;
+  color: $color-text-tertiary;
 }
 
 .question-content {
-  font-size: 18px;
-  color: #333;
-  line-height: 1.6;
-  margin-bottom: 20px;
+  font-size: $font-size-xl;
+  color: $color-text-primary;
+  line-height: $line-height-relaxed;
+  margin-bottom: $space-xl;
 }
 
 .options-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: $space-md;
 }
 
 .option-item {
   display: flex;
   align-items: center;
-  padding: 16px;
-  background: #f8f9fa;
-  border-radius: 12px;
-  border: 2px solid transparent;
-  transition: all 0.3s;
+  padding: $space-lg;
+  background: $color-bg-input;
+  border-radius: $radius-lg;
+  border: 2rpx solid transparent;
+  transition: background $duration-fast, border-color $duration-fast, transform $duration-instant;
+  
+  &:active:not(.correct):not(.wrong) {
+    transform: scale(0.99);
+    background: #f0f1f2;
+  }
   
   &.selected {
-    background: #f0f5ff;
-    border-color: #667eea;
+    background: $color-primary-light;
+    border-color: $color-primary;
   }
   
   &.correct {
-    background: #f6ffed;
-    border-color: #52c41a;
+    background: $color-success-bg;
+    border-color: $color-success;
+    animation: pulseCorrect $duration-slow $ease-bounce;
   }
   
   &.wrong {
-    background: #fff2f0;
-    border-color: #ff4d4f;
+    background: $color-error-bg;
+    border-color: $color-error;
+    animation: shake $duration-slow $ease-out;
   }
 }
 
 .option-marker {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: #fff;
-  border: 2px solid #ddd;
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: $radius-full;
+  background: $color-bg-card;
+  border: 2rpx solid $color-border-input;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
-  font-weight: 600;
-  color: #666;
-  margin-right: 12px;
+  font-size: $font-size-base;
+  font-weight: $font-weight-semibold;
+  color: $color-text-secondary;
+  margin-right: $space-md;
   flex-shrink: 0;
+  transition: all $duration-fast;
   
   .selected & {
-    background: #667eea;
-    border-color: #667eea;
-    color: #fff;
+    background: $color-primary;
+    border-color: $color-primary;
+    color: $color-text-inverse;
   }
   
   .correct & {
-    background: #52c41a;
-    border-color: #52c41a;
-    color: #fff;
+    background: $color-success;
+    border-color: $color-success;
+    color: $color-text-inverse;
   }
   
   .wrong & {
-    background: #ff4d4f;
-    border-color: #ff4d4f;
-    color: #fff;
+    background: $color-error;
+    border-color: $color-error;
+    color: $color-text-inverse;
   }
 }
 
 .option-text {
   flex: 1;
-  font-size: 16px;
-  color: #333;
+  font-size: $font-size-lg;
+  color: $color-text-primary;
 }
 
 .option-icon {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
+  width: 48rpx;
+  height: 48rpx;
+  border-radius: $radius-full;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
-  font-weight: bold;
-  margin-left: 12px;
+  font-size: $font-size-base;
+  font-weight: $font-weight-bold;
+  margin-left: $space-md;
   
   &.correct-icon {
-    background: #52c41a;
-    color: #fff;
+    background: $color-success;
+    color: $color-text-inverse;
   }
   
   &.wrong-icon {
-    background: #ff4d4f;
-    color: #fff;
+    background: $color-error;
+    color: $color-text-inverse;
   }
 }
 
 .analysis-section {
-  margin-top: 20px;
-  padding-top: 20px;
-  border-top: 1px solid #f0f0f0;
+  margin-top: $space-xl;
+  padding-top: $space-xl;
+  border-top: 1rpx solid $color-border-base;
 }
 
 .analysis-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: #667eea;
-  margin-bottom: 8px;
+  font-size: $font-size-base;
+  font-weight: $font-weight-semibold;
+  color: $color-primary;
+  margin-bottom: $space-sm;
 }
 
 .analysis-content {
-  font-size: 15px;
-  color: #666;
-  line-height: 1.8;
-  background: #f8f9fa;
-  padding: 12px;
-  border-radius: 8px;
+  font-size: $font-size-md;
+  color: $color-text-secondary;
+  line-height: $line-height-relaxed;
+  background: $color-bg-input;
+  padding: $space-md;
+  border-radius: $radius-md;
 }
 </style>

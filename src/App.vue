@@ -31,10 +31,11 @@ onHide(() => {})
 
 <style lang="scss">
 @import '@/uni.scss';
+@import '@/styles/global.scss';
 
 page {
-  background-color: #f5f7fa;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background-color: $color-bg-page;
+  font-family: $font-family-base;
 }
 
 view, text {

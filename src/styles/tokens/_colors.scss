@@ -1,0 +1,48 @@
+// ==========================================
+// 智慧刷题 — 色彩系统
+// ==========================================
+
+// ============ 品牌色 ============
+$color-primary: #667eea;           // 主色（NavBar、按钮渐变起点）
+$color-primary-dark: #5a6fd6;     // 主色深（:active 按压态）
+$color-primary-light: #f0f5ff;    // 主色浅（选中态背景、卡片悬浮）
+$color-secondary: #764ba2;        // 辅色（渐变终点）
+
+// 品牌渐变（项目中复用率最高的样式模式）
+$gradient-primary: linear-gradient(135deg, $color-primary 0%, $color-secondary 100%);
+$gradient-success: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);
+
+// ============ 功能色 ============
+$color-success: #52c41a;          // 成功（正确提示、正确答案）
+$color-success-bg: #f6ffed;       // 成功背景（正确选项底）
+$color-success-border: #b7eb8f;   // 成功边框
+
+$color-error: #ff4d4f;            // 错误（错误提示、删除按钮）
+$color-error-bg: #fff2f0;         // 错误背景（错误选项底）
+$color-error-border: #ffccc7;     // 错误边框
+
+$color-warning: #fa8c16;          // 警告（判断题标签、需注意项）
+$color-warning-bg: #fff7e6;       // 警告背景
+$color-warning-border: #ffd591;   // 警告边框
+
+$color-info: #1890ff;             // 信息（单选题标签、通知）
+$color-info-bg: #e8f4fd;          // 信息背景
+
+// ============ 中立色 — 文字 ============
+$color-text-primary: #333333;     // 主要文字
+$color-text-secondary: #666666;   // 次要文字（描述、元信息）
+$color-text-tertiary: #999999;    // 辅助文字（placeholder、时间戳）
+$color-text-disabled: #cccccc;    // 禁用文字
+$color-text-inverse: #ffffff;     // 反色文字（深色背景上使用）
+
+// ============ 中立色 — 背景 ============
+$color-bg-page: #f5f7fa;          // 页面背景
+$color-bg-card: #ffffff;          // 卡片背景
+$color-bg-input: #f8f9fa;         // 输入区域背景（未选中选项、表单区）
+$color-bg-hover: #f0f0f0;         // 按压/悬停态背景
+$color-bg-mask: rgba(0, 0, 0, 0.5); // 弹窗遮罩
+
+// ============ 中立色 — 边框 ============
+$color-border-base: #f0f0f0;      // 基础分割线
+$color-border-input: #dddddd;     // 输入框/选项边框
+$color-border-light: #e8e8e8;     // 浅色边框（进度条背景等）

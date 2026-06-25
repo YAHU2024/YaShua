@@ -3,10 +3,9 @@
     <NavBar title="题库管理" show-back />
     
     <view class="content">
-      <view class="add-btn" @click="showAddModal = true">
-        <text class="add-icon">+</text>
-        <text class="add-text">添加题库</text>
-      </view>
+      <BaseButton variant="primary" size="xl" block @click="showAddModal = true">
+        <text class="add-icon-inline">+</text> 添加题库
+      </BaseButton>
 
       <view v-if="libraries.length > 0" class="library-list">
         <view
@@ -34,11 +33,12 @@
         </view>
       </view>
 
-      <view v-else class="empty-state">
-        <text class="empty-icon">📚</text>
-        <text class="empty-title">暂无题库</text>
-        <text class="empty-desc">点击上方按钮添加题库</text>
-      </view>
+      <EmptyState
+        v-else
+        icon="📚"
+        title="暂无题库"
+        description="点击上方按钮添加题库"
+      />
     </view>
 
     <!-- 添加/编辑题库弹窗 -->
@@ -46,16 +46,19 @@
       <view class="modal-content" @click.stop>
         <view class="modal-header">
           <text class="modal-title">{{ editingLibrary ? '编辑题库' : '添加题库' }}</text>
-          <text class="modal-close" @click="closeModal">×</text>
+          <view class="modal-close" @click="closeModal" aria-label="关闭">×</view>
         </view>
         <view class="modal-body">
           <view class="form-item">
             <text class="form-label">题库名称</text>
             <input
               class="form-input"
+              :class="{ 'form-input-error': showNameError }"
               v-model="formData.name"
               placeholder="请输入题库名称"
+              @input="showNameError = false"
             />
+            <text v-if="showNameError" class="form-error-tip">题库名称不能为空</text>
           </view>
           <view class="form-item">
             <text class="form-label">题库描述</text>
@@ -105,11 +108,10 @@
                   </view>
                 </view>
                 <view v-if="isParsing" class="parsing-status">
-                  <text class="parsing-icon">⏳</text>
-                  <text class="parsing-text">{{ parsingStatusText }}</text>
+                  <LoadingState text="AI 正在解析题目..." />
                 </view>
                 <view v-if="!isParsing && parsedQuestions.length === 0 && uploadedFile" class="parse-action">
-                  <button class="parse-btn" @click="parseWithAI">AI 智能解析</button>
+                  <BaseButton variant="primary" size="md" block @click="parseWithAI">AI 智能解析</BaseButton>
                 </view>
               </view>
 
@@ -122,11 +124,10 @@
                   placeholder-style="white-space: pre-line;"
                 />
                 <view v-if="isParsing" class="parsing-status">
-                  <text class="parsing-icon">⏳</text>
-                  <text class="parsing-text">{{ parsingStatusText }}</text>
+                  <LoadingState text="AI 正在解析题目..." />
                 </view>
                 <view v-if="!isParsing && parsedQuestions.length === 0 && textContent.trim()" class="parse-action">
-                  <button class="parse-btn" @click="parseWithAI">AI 智能解析</button>
+                  <BaseButton variant="primary" size="md" block @click="parseWithAI">AI 智能解析</BaseButton>
                 </view>
               </view>
 
@@ -188,12 +189,15 @@
           </view>
         </view>
         <view class="modal-footer">
-          <button class="modal-btn cancel" @click="closeModal">取消</button>
-          <button
-            class="modal-btn confirm"
+          <BaseButton variant="secondary" size="md" class="footer-btn" @click="closeModal">取消</BaseButton>
+          <BaseButton
+            variant="primary"
+            size="md"
+            class="footer-btn"
+            :loading="isParsing"
             :disabled="isParsing"
             @click="saveLibrary"
-          >{{ isParsing ? '解析中...' : '保存' }}</button>
+          >{{ isParsing ? '解析中...' : '保存' }}</BaseButton>
         </view>
       </view>
     </view>
@@ -261,8 +265,8 @@
           </view>
         </view>
         <view class="modal-footer">
-          <button class="modal-btn cancel" @click="showEditModal = false">取消</button>
-          <button class="modal-btn confirm" @click="saveEditedQuestion">保存</button>
+          <BaseButton variant="secondary" size="md" class="footer-btn" @click="showEditModal = false">取消</BaseButton>
+          <BaseButton variant="primary" size="md" class="footer-btn" @click="saveEditedQuestion">保存</BaseButton>
         </view>
       </view>
     </view>
@@ -272,6 +276,9 @@
 <script setup lang="ts">
 import { ref, computed, watch, reactive } from 'vue'
 import NavBar from '@/components/NavBar.vue'
+import BaseButton from '@/components/BaseButton.vue'
+import LoadingState from '@/components/LoadingState.vue'
+import EmptyState from '@/components/EmptyState.vue'
 import { useLibraryStore } from '@/stores/library'
 import { useUserStore } from '@/stores/user'
 import { parseMarkdown } from '@/utils/parser'
@@ -284,6 +291,7 @@ const userStore = useUserStore()
 const showAddModal = ref(false)
 const editingLibrary = ref<Library | null>(null)
 const importMode = ref<'file' | 'text' | 'markdown'>('file')
+const showNameError = ref(false)
 
 const formData = ref({
   name: '',
@@ -546,6 +554,7 @@ function deleteQuestion(index: number) {
 // 保存题库
 async function saveLibrary() {
   if (!formData.value.name.trim()) {
+    showNameError.value = true
     uni.showToast({ title: '请输入题库名称', icon: 'none' })
     return
   }
@@ -611,71 +620,53 @@ async function saveLibrary() {
 </script>
 
 <style lang="scss" scoped>
+@import '@/styles/tokens/_index.scss';
+
 .page {
   min-height: 100vh;
-  background: #f5f7fa;
+  background: $color-bg-page;
 }
 
 .content {
-  padding: 20px;
+  padding: $space-xl;
 }
 
-.add-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 16px;
-  padding: 20px;
-  margin-bottom: 20px;
-  
-  &:active {
-    opacity: 0.9;
-  }
-}
-
-.add-icon {
-  font-size: 24px;
-  color: #fff;
-  margin-right: 8px;
-}
-
-.add-text {
-  font-size: 16px;
-  font-weight: 600;
-  color: #fff;
+.add-icon-inline {
+  font-size: $font-size-2xl;
+  margin-right: $space-sm;
 }
 
 .library-list {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: $space-lg;
+  margin-top: $space-xl;
 }
 
 .library-card {
-  background: #fff;
-  border-radius: 16px;
-  padding: 20px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  background: $color-bg-card;
+  border-radius: $radius-xl;
+  padding: $space-xl;
+  box-shadow: $shadow-md;
 }
 
 .library-info {
-  margin-bottom: 16px;
+  margin-bottom: $space-lg;
 }
 
 .library-name {
   display: block;
-  font-size: 18px;
-  font-weight: 600;
-  color: #333;
-  margin-bottom: 8px;
+  font-size: $font-size-xl;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+  margin-bottom: $space-sm;
 }
 
 .library-desc {
   display: block;
-  font-size: 14px;
-  color: #666;
-  margin-bottom: 12px;
+  font-size: $font-size-base;
+  color: $color-text-secondary;
+  margin-bottom: $space-md;
 }
 
 .library-meta {
@@ -684,66 +675,42 @@ async function saveLibrary() {
 }
 
 .meta-item {
-  font-size: 13px;
-  color: #999;
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
 }
 
 .meta-divider {
-  margin: 0 8px;
-  color: #ddd;
+  margin: 0 $space-sm;
+  color: $color-text-disabled;
 }
 
 .library-actions {
   display: flex;
-  gap: 12px;
-  padding-top: 16px;
-  border-top: 1px solid #f0f0f0;
+  gap: $space-md;
+  padding-top: $space-lg;
+  border-top: 1rpx solid $color-border-base;
 }
 
 .action-btn {
   flex: 1;
   text-align: center;
-  padding: 12px;
-  border-radius: 8px;
-  font-size: 14px;
-  
+  padding: $space-md;
+  border-radius: $radius-md;
+  font-size: $font-size-base;
+
   &.edit {
-    background: #f0f5ff;
-    color: #667eea;
+    background: $color-primary-light;
+    color: $color-primary;
   }
-  
+
   &.delete {
-    background: #fff2f0;
-    color: #ff4d4f;
+    background: $color-error-bg;
+    color: $color-error;
   }
-  
+
   &:active {
     opacity: 0.7;
   }
-}
-
-.empty-state {
-  text-align: center;
-  padding: 60px 20px;
-}
-
-.empty-icon {
-  display: block;
-  font-size: 64px;
-  margin-bottom: 16px;
-}
-
-.empty-title {
-  display: block;
-  font-size: 18px;
-  font-weight: 600;
-  color: #333;
-  margin-bottom: 8px;
-}
-
-.empty-desc {
-  font-size: 14px;
-  color: #999;
 }
 
 .modal-overlay {
@@ -752,23 +719,25 @@ async function saveLibrary() {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: $color-bg-mask;
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  padding: 20px;
+  padding: $space-xl;
+  animation: overlayFadeIn $duration-slow $ease-out;
 }
 
 .modal-content {
   width: 100%;
   max-width: 600px;
-  background: #fff;
-  border-radius: 20px;
+  background: $color-bg-card;
+  border-radius: $radius-2xl;
   overflow: hidden;
   max-height: 85vh;
   display: flex;
   flex-direction: column;
+  animation: modalScaleIn $duration-slow $ease-bounce;
 }
 
 .edit-modal {
@@ -779,89 +748,114 @@ async function saveLibrary() {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px;
-  border-bottom: 1px solid #f0f0f0;
+  padding: $space-xl;
+  border-bottom: 1rpx solid $color-border-base;
   flex-shrink: 0;
 }
 
 .modal-title {
-  font-size: 18px;
-  font-weight: 600;
-  color: #333;
+  font-size: $font-size-xl;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
 }
 
 .modal-close {
-  font-size: 24px;
-  color: #999;
-  padding: 8px;
+  width: $touch-target-min;
+  height: $touch-target-min;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 48rpx;
+  color: $color-text-tertiary;
 }
 
 .modal-body {
-  padding: 20px;
+  padding: $space-xl;
   overflow-y: auto;
   flex: 1;
 }
 
 .form-item {
-  margin-bottom: 20px;
+  margin-bottom: $section-gap;
 }
 
 .form-label {
   display: block;
-  font-size: 14px;
-  font-weight: 500;
-  color: #333;
-  margin-bottom: 8px;
+  font-size: $font-size-base;
+  font-weight: $font-weight-medium;
+  color: $color-text-primary;
+  margin-bottom: $space-sm;
 }
 
 .form-input {
   width: 100%;
-  height: 48px;
-  padding: 0 16px;
-  border: 1px solid #ddd;
-  border-radius: 12px;
-  font-size: 16px;
+  height: $btn-height-lg;
+  padding: 0 $space-lg;
+  border: 2rpx solid $color-border-input;
+  border-radius: $radius-lg;
+  font-size: $font-size-lg;
+  transition: border-color $duration-fast;
+
+  &:focus {
+    border-color: $color-primary;
+    box-shadow: 0 0 0 4rpx rgba($color-primary, 0.1);
+  }
+
+  &.form-input-error {
+    border-color: $color-error;
+  }
+}
+
+.form-error-tip {
+  display: block;
+  font-size: $font-size-sm;
+  color: $color-error;
+  margin-top: $space-xs;
 }
 
 .form-textarea {
   width: 100%;
-  height: 100px;
-  padding: 12px 16px;
-  border: 1px solid #ddd;
-  border-radius: 12px;
-  font-size: 16px;
-  
+  height: 200rpx;
+  padding: $space-md $space-lg;
+  border: 2rpx solid $color-border-input;
+  border-radius: $radius-lg;
+  font-size: $font-size-lg;
+
+  &:focus {
+    border-color: $color-primary;
+  }
+
   &.large {
-    height: 150px;
+    height: 300rpx;
   }
 }
 
 .import-section {
-  background: #f8f9fa;
-  border-radius: 12px;
-  padding: 16px;
+  background: $color-bg-input;
+  border-radius: $radius-lg;
+  padding: $space-lg;
 }
 
 .import-tabs {
   display: flex;
-  margin-bottom: 16px;
-  gap: 8px;
+  margin-bottom: $space-lg;
+  gap: $space-sm;
 }
 
 .tab-item {
   flex: 1;
   text-align: center;
-  padding: 10px 4px;
-  border-radius: 8px;
-  font-size: 13px;
-  color: #666;
-  background: #fff;
-  border: 1px solid #e8e8e8;
-  
+  padding: 20rpx 8rpx;
+  border-radius: $radius-md;
+  font-size: $font-size-xs;
+  color: $color-text-secondary;
+  background: $color-bg-card;
+  border: 2rpx solid $color-border-light;
+
   &.active {
-    background: #667eea;
-    color: #fff;
-    border-color: #667eea;
+    background: $color-primary;
+    color: $color-text-inverse;
+    border-color: $color-primary;
   }
 }
 
@@ -874,39 +868,40 @@ async function saveLibrary() {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 30px 20px;
-  background: #fff;
-  border: 2px dashed #d9d9d9;
-  border-radius: 12px;
-  
+  padding: 60rpx $space-xl;
+  background: $color-bg-card;
+  border: 4rpx dashed #d9d9d9;
+  border-radius: $radius-lg;
+  transition: border-color $duration-fast;
+
   &:active {
-    border-color: #667eea;
-    background: #f0f5ff;
+    border-color: $color-primary;
+    background: $color-primary-light;
   }
 }
 
 .upload-icon {
-  font-size: 40px;
-  margin-bottom: 10px;
+  font-size: 80rpx;
+  margin-bottom: 20rpx;
 }
 
 .upload-text {
-  font-size: 15px;
-  color: #333;
-  font-weight: 500;
-  margin-bottom: 6px;
+  font-size: $font-size-md;
+  color: $color-text-primary;
+  font-weight: $font-weight-medium;
+  margin-bottom: 12rpx;
 }
 
 .upload-hint {
-  font-size: 12px;
-  color: #999;
+  font-size: $font-size-sm;
+  color: $color-text-tertiary;
   line-height: 1.6;
 }
 
 .file-selected {
-  background: #fff;
-  border-radius: 12px;
-  padding: 16px;
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  padding: $space-lg;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -920,13 +915,13 @@ async function saveLibrary() {
 }
 
 .file-icon {
-  font-size: 28px;
-  margin-right: 10px;
+  font-size: 56rpx;
+  margin-right: 20rpx;
 }
 
 .file-name {
-  font-size: 14px;
-  color: #333;
+  font-size: $font-size-base;
+  color: $color-text-primary;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -937,283 +932,224 @@ async function saveLibrary() {
 }
 
 .file-action {
-  font-size: 13px;
-  padding: 4px 12px;
-  border-radius: 6px;
-  
+  font-size: $font-size-xs;
+  padding: $space-xs $space-md;
+  border-radius: 12rpx;
+
   &.reselect {
-    color: #667eea;
-    background: #f0f5ff;
+    color: $color-primary;
+    background: $color-primary-light;
   }
 }
 
 .parsing-status {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  margin-top: 12px;
-  background: #fff;
-  border-radius: 12px;
-}
-
-.parsing-icon {
-  font-size: 20px;
-  margin-right: 8px;
-}
-
-.parsing-text {
-  font-size: 14px;
-  color: #667eea;
+  margin-top: $space-md;
 }
 
 .parse-action {
-  margin-top: 12px;
-}
-
-.parse-btn {
-  width: 100%;
-  height: 44px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: #fff;
-  border: none;
-  border-radius: 10px;
-  font-size: 15px;
-  font-weight: 500;
-  
-  &:active {
-    opacity: 0.9;
-  }
+  margin-top: $space-md;
 }
 
 .import-textarea {
   width: 100%;
-  height: 200px;
-  padding: 12px;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  font-size: 14px;
-  background: #fff;
+  height: 400rpx;
+  padding: $space-md;
+  border: 2rpx solid $color-border-input;
+  border-radius: $radius-md;
+  font-size: $font-size-base;
+  background: $color-bg-card;
+
+  &:focus {
+    border-color: $color-primary;
+  }
 }
 
 .parse-preview {
-  margin-top: 12px;
-  padding: 12px;
-  background: #e8f4fd;
-  border-radius: 8px;
+  margin-top: $space-md;
+  padding: $space-md;
+  background: $color-info-bg;
+  border-radius: $radius-md;
 }
 
 .preview-title {
-  font-size: 13px;
-  color: #1890ff;
+  font-size: $font-size-xs;
+  color: $color-info;
 }
 
 .parse-result {
-  margin-top: 16px;
+  margin-top: $space-lg;
 }
 
 .result-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: $space-md;
 }
 
 .result-title {
-  font-size: 14px;
-  color: #52c41a;
-  font-weight: 500;
+  font-size: $font-size-base;
+  color: $color-success;
+  font-weight: $font-weight-medium;
 }
 
 .result-action {
-  font-size: 13px;
-  color: #ff4d4f;
+  font-size: $font-size-xs;
+  color: $color-error;
 }
 
 .question-list {
-  max-height: 300px;
+  max-height: 600rpx;
   overflow-y: auto;
 }
 
 .question-item {
-  background: #fff;
-  border-radius: 10px;
-  padding: 14px;
-  margin-bottom: 10px;
-  border: 1px solid #f0f0f0;
+  background: $color-bg-card;
+  border-radius: 20rpx;
+  padding: 28rpx;
+  margin-bottom: 20rpx;
+  border: 2rpx solid $color-border-base;
 }
 
 .question-header {
   display: flex;
   align-items: center;
-  margin-bottom: 8px;
+  margin-bottom: $space-sm;
 }
 
 .question-type-tag {
-  font-size: 11px;
-  padding: 2px 8px;
-  border-radius: 4px;
-  margin-right: 8px;
-  font-weight: 500;
-  
+  font-size: 22rpx;
+  padding: 4rpx 16rpx;
+  border-radius: $radius-xs;
+  margin-right: $space-sm;
+  font-weight: $font-weight-medium;
+
   &.single {
-    background: #e6f7ff;
-    color: #1890ff;
+    background: $color-info-bg;
+    color: $color-info;
   }
-  
+
   &.multiple {
-    background: #f6ffed;
-    color: #52c41a;
+    background: $color-success-bg;
+    color: $color-success;
   }
-  
+
   &.judge {
-    background: #fff7e6;
-    color: #fa8c16;
+    background: $color-warning-bg;
+    color: $color-warning;
   }
 }
 
 .question-number {
-  font-size: 13px;
-  color: #999;
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
   flex: 1;
 }
 
 .question-ops {
   display: flex;
-  gap: 8px;
+  gap: $space-sm;
 }
 
 .q-op {
-  font-size: 12px;
-  padding: 2px 10px;
-  border-radius: 4px;
-  
+  font-size: $font-size-sm;
+  padding: 4rpx 20rpx;
+  border-radius: $radius-xs;
+
   &.edit {
-    color: #667eea;
-    background: #f0f5ff;
+    color: $color-primary;
+    background: $color-primary-light;
   }
-  
+
   &.delete {
-    color: #ff4d4f;
-    background: #fff2f0;
+    color: $color-error;
+    background: $color-error-bg;
   }
 }
 
 .question-content {
   display: block;
-  font-size: 14px;
-  color: #333;
-  line-height: 1.5;
-  margin-bottom: 8px;
+  font-size: $font-size-base;
+  color: $color-text-primary;
+  line-height: $line-height-base;
+  margin-bottom: $space-sm;
 }
 
 .question-options {
-  margin-bottom: 8px;
+  margin-bottom: $space-sm;
 }
 
 .question-option {
   display: block;
-  font-size: 13px;
-  color: #666;
+  font-size: $font-size-xs;
+  color: $color-text-secondary;
   line-height: 1.8;
 }
 
 .question-answer {
   display: flex;
   align-items: center;
-  margin-bottom: 4px;
+  margin-bottom: $space-xs;
 }
 
 .answer-label {
-  font-size: 13px;
-  color: #999;
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
 }
 
 .answer-value {
-  font-size: 13px;
-  color: #52c41a;
-  font-weight: 500;
+  font-size: $font-size-xs;
+  color: $color-success;
+  font-weight: $font-weight-medium;
 }
 
 .question-analysis {
   display: block;
-  font-size: 12px;
-  color: #999;
-  line-height: 1.5;
-  margin-top: 6px;
-  padding-top: 6px;
-  border-top: 1px solid #f5f5f5;
+  font-size: $font-size-sm;
+  color: $color-text-tertiary;
+  line-height: $line-height-base;
+  margin-top: 12rpx;
+  padding-top: 12rpx;
+  border-top: 1rpx solid $color-border-base;
 }
 
 .result-actions {
-  margin-top: 12px;
+  margin-top: $space-md;
   display: flex;
-  gap: 12px;
-}
-
-.result-btn {
-  flex: 1;
-  height: 40px;
-  border: none;
-  border-radius: 8px;
-  font-size: 14px;
-  
-  &.reparse {
-    background: #f0f5ff;
-    color: #667eea;
-  }
+  gap: $space-md;
 }
 
 .type-selector {
   display: flex;
-  gap: 8px;
+  gap: $space-sm;
 }
 
 .type-option {
   flex: 1;
   text-align: center;
-  padding: 10px;
-  border-radius: 8px;
-  font-size: 14px;
-  color: #666;
-  background: #f5f5f5;
-  border: 1px solid #e8e8e8;
-  
+  padding: 20rpx;
+  border-radius: $radius-md;
+  font-size: $font-size-base;
+  color: $color-text-secondary;
+  background: $color-bg-hover;
+  border: 2rpx solid $color-border-light;
+
   &.active {
-    background: #667eea;
-    color: #fff;
-    border-color: #667eea;
+    background: $color-primary;
+    color: $color-text-inverse;
+    border-color: $color-primary;
   }
 }
 
 .modal-footer {
   display: flex;
-  padding: 16px 20px;
-  border-top: 1px solid #f0f0f0;
-  gap: 12px;
+  padding: $space-lg $space-xl;
+  border-top: 1rpx solid $color-border-base;
+  gap: $space-md;
   flex-shrink: 0;
 }
 
-.modal-btn {
+.footer-btn {
   flex: 1;
-  height: 48px;
-  border-radius: 12px;
-  font-size: 16px;
-  font-weight: 500;
-  border: none;
-  
-  &.cancel {
-    background: #f5f5f5;
-    color: #666;
-  }
-  
-  &.confirm {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: #fff;
-    
-    &[disabled] {
-      opacity: 0.5;
-    }
-  }
 }
 </style>

@@ -2,8 +2,16 @@
   <view class="page">
     <NavBar :title="libraryName" />
 
-    <view class="content">
-      <!-- 错题列表 -->
+    <LoadingState v-if="loading" text="加载错题..." />
+
+    <ErrorState
+      v-else-if="errorMsg"
+      :message="errorMsg"
+      show-retry
+      @retry="loadWrongQuestions"
+    />
+
+    <view v-else class="content">
       <view v-if="wrongList.length > 0" class="wrong-list">
         <view
           v-for="item in wrongList"
@@ -23,23 +31,23 @@
           </view>
           <view
             class="wrong-delete"
+            aria-label="删除错题"
             @click.stop="deleteQuestion(item)"
           >×</view>
         </view>
       </view>
 
-      <!-- 空状态 -->
-      <view v-else class="empty-state">
-        <text class="empty-icon">🎉</text>
-        <text class="empty-title">暂无错题</text>
-        <text class="empty-desc">该题库还没有错题</text>
-      </view>
+      <EmptyState
+        v-else
+        icon="🎉"
+        title="暂无错题"
+        description="该题库还没有错题"
+      />
     </view>
 
-    <!-- 底部操作栏 -->
     <view v-if="wrongList.length > 0" class="bottom-bar">
-      <view class="bar-btn secondary" @click="clearGroup">清空</view>
-      <view class="bar-btn primary" @click="startGroupReview">全部重做</view>
+      <BaseButton variant="secondary" size="md" class="bar-btn" @click="clearGroup">清空</BaseButton>
+      <BaseButton variant="primary" size="md" class="bar-btn" @click="startGroupReview">全部重做</BaseButton>
     </view>
   </view>
 </template>
@@ -48,6 +56,10 @@
 import { ref, onMounted } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import NavBar from '@/components/NavBar.vue'
+import LoadingState from '@/components/LoadingState.vue'
+import EmptyState from '@/components/EmptyState.vue'
+import ErrorState from '@/components/ErrorState.vue'
+import BaseButton from '@/components/BaseButton.vue'
 import { useWrongStore } from '@/stores/wrong'
 import { useUserStore } from '@/stores/user'
 import { isCloudAvailable } from '@/utils/cloud'
@@ -58,6 +70,8 @@ const userStore = useUserStore()
 
 const libraryId = ref('')
 const libraryName = ref('')
+const loading = ref(true)
+const errorMsg = ref('')
 
 interface WrongItem extends WrongQuestion {
   question: Question
@@ -72,7 +86,6 @@ onLoad((options) => {
   if (options?.libraryName) {
     libraryName.value = decodeURIComponent(options.libraryName)
   }
-  // 设置导航栏标题
   uni.setNavigationBarTitle({ title: libraryName.value || '错题详情' })
 })
 
@@ -91,75 +104,80 @@ onShow(async () => {
 async function loadWrongQuestions() {
   if (!userStore.openid || !libraryId.value) return
 
-  // 加载该题库的错题记录
-  await wrongStore.loadWrongQuestions(userStore.openid, libraryId.value)
+  loading.value = true
+  errorMsg.value = ''
 
-  // 组装题目详情
-  const list = wrongStore.wrongQuestions
-  const result: WrongItem[] = []
+  try {
+    await wrongStore.loadWrongQuestions(userStore.openid, libraryId.value)
 
-  if (!isCloudAvailable() || userStore.openid.startsWith('local_')) {
-    // 本地模式：从本地存储获取题目数据
-    for (const wrong of list) {
-      try {
-        const raw = uni.getStorageSync('local_questions')
-        const questionsMap: Record<string, Question[]> = raw ? JSON.parse(raw) : {}
-        let found: Question | undefined
-        for (const lib of Object.values(questionsMap)) {
-          found = lib.find((q: Question) => q._id === wrong.questionId)
-          if (found) break
+    const list = wrongStore.wrongQuestions
+    const result: WrongItem[] = []
+
+    if (!isCloudAvailable() || userStore.openid.startsWith('local_')) {
+      for (const wrong of list) {
+        try {
+          const raw = uni.getStorageSync('local_questions')
+          const questionsMap: Record<string, Question[]> = raw ? JSON.parse(raw) : {}
+          let found: Question | undefined
+          for (const lib of Object.values(questionsMap)) {
+            found = lib.find((q: Question) => q._id === wrong.questionId)
+            if (found) break
+          }
+          result.push({
+            ...wrong,
+            question: found || createPlaceholderQuestion(wrong.questionId)
+          })
+        } catch {
+          result.push({
+            ...wrong,
+            question: createPlaceholderQuestion(wrong.questionId)
+          })
         }
-        result.push({
-          ...wrong,
-          question: found || createPlaceholderQuestion(wrong.questionId)
-        })
-      } catch {
-        result.push({
-          ...wrong,
-          question: createPlaceholderQuestion(wrong.questionId)
-        })
       }
-    }
-  } else {
-    // 云端模式：分批查询 questions 集合
-    try {
-      const db = uni.cloud.database()
-      const questionIds = [...new Set(list.map(w => w.questionId))]
-      const questionMap = new Map<string, Question>()
+    } else {
+      try {
+        const db = uni.cloud.database()
+        const questionIds = [...new Set(list.map(w => w.questionId))]
+        const questionMap = new Map<string, Question>()
 
-      if (questionIds.length > 0) {
-        const BATCH_SIZE = 100
-        for (let i = 0; i < questionIds.length; i += BATCH_SIZE) {
-          const batch = questionIds.slice(i, i + BATCH_SIZE)
-          const qResult = await db.collection('questions')
-            .where({ _id: db.command.in(batch) })
-            .get()
-          for (const q of (qResult.data || []) as Question[]) {
-            if (q._id) questionMap.set(q._id, q)
+        if (questionIds.length > 0) {
+          const BATCH_SIZE = 100
+          for (let i = 0; i < questionIds.length; i += BATCH_SIZE) {
+            const batch = questionIds.slice(i, i + BATCH_SIZE)
+            const qResult = await db.collection('questions')
+              .where({ _id: db.command.in(batch) })
+              .get()
+            for (const q of (qResult.data || []) as Question[]) {
+              if (q._id) questionMap.set(q._id, q)
+            }
           }
         }
-      }
 
-      for (const wrong of list) {
-        const question = questionMap.get(wrong.questionId)
-        result.push({
-          ...wrong,
-          question: question || createPlaceholderQuestion(wrong.questionId)
-        })
-      }
-    } catch (e) {
-      console.error('获取错题详情失败', e)
-      // 降级：使用占位题目
-      for (const wrong of list) {
-        result.push({
-          ...wrong,
-          question: createPlaceholderQuestion(wrong.questionId)
-        })
+        for (const wrong of list) {
+          const question = questionMap.get(wrong.questionId)
+          result.push({
+            ...wrong,
+            question: question || createPlaceholderQuestion(wrong.questionId)
+          })
+        }
+      } catch (e) {
+        console.error('获取错题详情失败', e)
+        for (const wrong of list) {
+          result.push({
+            ...wrong,
+            question: createPlaceholderQuestion(wrong.questionId)
+          })
+        }
       }
     }
-  }
 
-  wrongList.value = result
+    wrongList.value = result
+  } catch (e) {
+    console.error('加载错题失败', e)
+    errorMsg.value = '加载失败，请检查网络连接'
+  } finally {
+    loading.value = false
+  }
 }
 
 function createPlaceholderQuestion(questionId: string): Question {
@@ -238,30 +256,38 @@ async function clearGroup() {
 </script>
 
 <style lang="scss" scoped>
+@import '@/styles/tokens/_index.scss';
+
 .page {
   min-height: 100vh;
-  background: #f5f7fa;
-  padding-bottom: 80px; /* 为底部操作栏留空间 */
+  background: $color-bg-page;
+  padding-bottom: 160rpx;
 }
 
 .content {
-  padding: 20px;
-  padding-bottom: 40px;
+  padding: $space-xl;
+  padding-bottom: 80rpx;
 }
 
 .wrong-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: $list-gap;
 }
 
 .wrong-item {
-  background: #fff;
-  border-radius: 16px;
-  padding: 16px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  background: $color-bg-card;
+  border-radius: $radius-xl;
+  padding: $space-lg;
+  box-shadow: $shadow-md;
   display: flex;
   align-items: center;
+  transition: transform $duration-instant;
+  
+  &:active {
+    transform: scale(0.99);
+    background: $color-bg-hover;
+  }
 }
 
 .wrong-content {
@@ -269,79 +295,56 @@ async function clearGroup() {
 }
 
 .wrong-text {
-  font-size: 15px;
-  color: #333;
-  line-height: 1.5;
+  font-size: $font-size-md;
+  color: $color-text-primary;
+  line-height: $line-height-base;
 }
 
 .wrong-meta {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  margin-right: 12px;
+  margin-right: $space-md;
 }
 
 .wrong-count {
   display: flex;
   align-items: center;
-  margin-bottom: 4px;
+  margin-bottom: $space-xs;
 }
 
 .count-icon {
-  font-size: 14px;
-  color: #ff4d4f;
-  margin-right: 4px;
+  font-size: $font-size-base;
+  color: $color-error;
+  margin-right: $space-xs;
 }
 
 .count-text {
-  font-size: 12px;
-  color: #ff4d4f;
+  font-size: $font-size-sm;
+  color: $color-error;
 }
 
 .wrong-time {
-  font-size: 12px;
-  color: #999;
+  font-size: $font-size-sm;
+  color: $color-text-tertiary;
 }
 
 .wrong-delete {
-  width: 28px;
-  height: 28px;
+  width: $touch-target-min;
+  height: $touch-target-min;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
-  color: #ccc;
-  border-radius: 50%;
+  font-size: $font-size-2xl;
+  color: $color-text-disabled;
+  border-radius: $radius-full;
   flex-shrink: 0;
+  transition: all $duration-fast;
 
   &:active {
-    background: #f5f5f5;
-    color: #ff4d4f;
+    background: $color-bg-hover;
+    color: $color-error;
   }
-}
-
-.empty-state {
-  text-align: center;
-  padding: 80px 20px;
-}
-
-.empty-icon {
-  display: block;
-  font-size: 80px;
-  margin-bottom: 20px;
-}
-
-.empty-title {
-  display: block;
-  font-size: 18px;
-  font-weight: 600;
-  color: #333;
-  margin-bottom: 8px;
-}
-
-.empty-desc {
-  font-size: 14px;
-  color: #999;
 }
 
 .bottom-bar {
@@ -350,34 +353,15 @@ async function clearGroup() {
   left: 0;
   right: 0;
   display: flex;
-  gap: 12px;
-  padding: 12px 20px;
-  padding-bottom: calc(12px + env(safe-area-inset-bottom));
-  background: #fff;
-  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.06);
+  gap: $space-md;
+  padding: $space-md $space-xl;
+  padding-bottom: calc($space-md + $safe-area-bottom);
+  background: $color-bg-card;
+  box-shadow: $shadow-top;
   z-index: 100;
 }
 
 .bar-btn {
   flex: 1;
-  text-align: center;
-  padding: 12px 0;
-  border-radius: 12px;
-  font-size: 15px;
-  font-weight: 600;
-
-  &.primary {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: #fff;
-  }
-
-  &.secondary {
-    background: #f5f5f5;
-    color: #666;
-  }
-
-  &:active {
-    opacity: 0.8;
-  }
 }
 </style>

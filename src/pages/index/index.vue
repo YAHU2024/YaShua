@@ -59,17 +59,16 @@
             <view class="library-arrow">›</view>
           </view>
         </view>
-        <view v-else class="empty-library">
-          <text class="empty-icon">📝</text>
-          <text class="empty-text">暂无题库</text>
-          <text class="empty-hint">点击下方按钮添加题库</text>
-        </view>
+        <EmptyState
+          v-else
+          icon="📝"
+          title="暂无题库"
+          description="点击下方按钮添加题库开始学习"
+        />
       </view>
 
       <view class="action-section">
-        <button class="action-btn" @click="goToLibrary">
-          <text class="btn-text">题库管理</text>
-        </button>
+        <BaseButton variant="primary" size="xl" block @click="goToLibrary">题库管理</BaseButton>
       </view>
 
       <view class="footer">
@@ -83,6 +82,8 @@
 import { onMounted, computed } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import StatsCard from '@/components/StatsCard.vue'
+import EmptyState from '@/components/EmptyState.vue'
+import BaseButton from '@/components/BaseButton.vue'
 import { useUserStore } from '@/stores/user'
 import { useLibraryStore } from '@/stores/library'
 import { useStatsStore } from '@/stores/stats'
@@ -106,12 +107,9 @@ onMounted(async () => {
 })
 
 onShow(async () => {
-  // openid 未就绪时兜底登录（首次加载时 onShow 可能在 doLogin 完成前触发）
   if (!userStore.openid) {
     await userStore.doLogin()
   }
-  // 不再调用 loadStats/loadWrongQuestions → 由 syncStatsStore 保证内存数据实时性
-  // 冷启动时的首次加载由 onMounted 负责
   console.log('[index.onShow] statsStore 当前值:', { todayQuestions: statsStore.todayQuestions, todayCorrect: statsStore.todayCorrect, total: statsStore.totalQuestions, correct: statsStore.correctCount })
 })
 
@@ -156,15 +154,17 @@ function goToLibrary() {
 </script>
 
 <style lang="scss" scoped>
+@import '@/styles/tokens/_index.scss';
+
 .page {
   min-height: 100vh;
-  background: #f5f7fa;
+  background: $color-bg-page;
 }
 
 .header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 0 0 32px 32px;
-  padding: 60px 24px 32px;
+  background: $gradient-primary;
+  border-radius: 0 0 $radius-3xl $radius-3xl;
+  padding: 120rpx $space-2xl $space-3xl;
 }
 
 .header-content {
@@ -173,128 +173,120 @@ function goToLibrary() {
 
 .app-title {
   display: block;
-  font-size: 32px;
-  font-weight: 700;
-  color: #fff;
-  margin-bottom: 8px;
+  font-size: $font-size-3xl;
+  font-weight: $font-weight-bold;
+  color: $color-text-inverse;
+  margin-bottom: $space-sm;
 }
 
 .app-subtitle {
-  font-size: 14px;
+  font-size: $font-size-base;
   color: rgba(255, 255, 255, 0.8);
 }
 
 .content {
-  padding: 0 16px;
-  padding-bottom: 120px;
+  padding: 0 $page-horizontal-padding;
+  padding-bottom: 240rpx;
 }
 
 .stats-section {
-  margin-top: -20px;
-  margin-bottom: 20px;
+  margin-top: -40rpx;
+  margin-bottom: $section-gap;
 }
 
 .section-title {
-  font-size: 18px;
-  font-weight: 600;
-  color: #333;
-  margin-bottom: 16px;
+  font-size: $font-size-xl;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+  margin-bottom: $space-lg;
 }
 
 .mode-section {
-  margin-bottom: 20px;
+  margin-bottom: $section-gap;
 }
 
 .mode-grid {
   display: flex;
-  gap: 12px;
+  gap: $space-md;
 }
 
 .mode-card {
   flex: 1;
-  background: #fff;
-  border-radius: 16px;
-  padding: 20px 12px;
+  background: $color-bg-card;
+  border-radius: $radius-xl;
+  padding: $space-xl $space-md;
   text-align: center;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
-  transition: transform 0.2s;
-  
+  box-shadow: $shadow-md;
+  transition: transform $duration-fast;
+
   &:active {
     transform: scale(0.95);
   }
 }
 
 .mode-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: $radius-lg;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24px;
-  margin: 0 auto 12px;
+  font-size: 48rpx;
+  margin: 0 auto $space-md;
   
-  &.sequence-icon {
-    background: #e8f4fd;
-  }
-  
-  &.random-icon {
-    background: #f6ffed;
-  }
-  
-  &.wrong-icon {
-    background: #fff7e6;
-  }
+  &.sequence-icon { background: $color-info-bg; }
+  &.random-icon   { background: $color-success-bg; }
+  &.wrong-icon    { background: $color-warning-bg; }
 }
 
 .mode-name {
   display: block;
-  font-size: 15px;
-  font-weight: 600;
-  color: #333;
-  margin-bottom: 4px;
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+  margin-bottom: $space-xs;
 }
 
 .mode-desc {
-  font-size: 12px;
-  color: #999;
+  font-size: $font-size-sm;
+  color: $color-text-tertiary;
 }
 
 .library-section {
-  background: #fff;
-  border-radius: 16px;
-  padding: 20px;
-  margin-bottom: 20px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  background: $color-bg-card;
+  border-radius: $radius-xl;
+  padding: $card-padding;
+  margin-bottom: $section-gap;
+  box-shadow: $shadow-md;
 }
 
 .section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: $space-lg;
 }
 
 .section-more {
-  font-size: 14px;
-  color: #667eea;
+  font-size: $font-size-base;
+  color: $color-primary;
 }
 
 .library-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: $list-gap;
 }
 
 .library-item {
   display: flex;
   align-items: center;
-  padding: 16px;
-  background: #f8f9fa;
-  border-radius: 12px;
-  
+  padding: $space-lg;
+  background: $color-bg-input;
+  border-radius: $radius-lg;
+
   &:active {
-    background: #f0f0f0;
+    background: $color-bg-hover;
   }
 }
 
@@ -304,68 +296,24 @@ function goToLibrary() {
 
 .library-name {
   display: block;
-  font-size: 16px;
-  font-weight: 500;
-  color: #333;
-  margin-bottom: 4px;
+  font-size: $font-size-lg;
+  font-weight: $font-weight-medium;
+  color: $color-text-primary;
+  margin-bottom: $space-xs;
 }
 
 .library-count {
-  font-size: 13px;
-  color: #999;
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
 }
 
 .library-arrow {
-  font-size: 20px;
-  color: #ccc;
-}
-
-.empty-library {
-  text-align: center;
-  padding: 32px 0;
-}
-
-.empty-icon {
-  display: block;
-  font-size: 48px;
-  margin-bottom: 12px;
-}
-
-.empty-text {
-  display: block;
-  font-size: 16px;
-  color: #666;
-  margin-bottom: 8px;
-}
-
-.empty-hint {
-  font-size: 13px;
-  color: #999;
+  font-size: $font-size-2xl;
+  color: $color-text-disabled;
 }
 
 .action-section {
-  margin-bottom: 20px;
-}
-
-.action-btn {
-  width: 100%;
-  height: 52px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 16px;
-  border: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  
-  &:active {
-    opacity: 0.9;
-  }
-}
-
-.btn-text {
-  font-size: 18px;
-  font-weight: 600;
-  color: #fff;
+  margin-bottom: $section-gap;
 }
 
 .footer {
@@ -373,7 +321,7 @@ function goToLibrary() {
 }
 
 .footer-text {
-  font-size: 13px;
-  color: #999;
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
 }
 </style>

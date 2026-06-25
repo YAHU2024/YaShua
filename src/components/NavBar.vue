@@ -2,7 +2,7 @@
   <view class="navbar">
     <view class="navbar-status-bar" :style="{ height: statusBarHeight + 'px' }"></view>
     <view class="navbar-content">
-      <view class="navbar-left" @click="handleBack" v-if="showBack">
+      <view class="navbar-left" @click="handleBack" v-if="showBack" aria-label="返回上一页">
         <text class="back-icon">←</text>
       </view>
       <view class="navbar-title">{{ title }}</view>
@@ -24,12 +24,10 @@ defineProps<{
 
 const statusBarHeight = ref(20)
 
-// 使用 getWindowInfo 替代已废弃的 getSystemInfo
 try {
   const windowInfo = uni.getWindowInfo()
   statusBarHeight.value = windowInfo.statusBarHeight || 20
 } catch (e) {
-  // 低版本基础库降级处理
   uni.getSystemInfo({
     success: (res) => {
       statusBarHeight.value = res.statusBarHeight || 20
@@ -47,13 +45,15 @@ function handleBack() {
 </script>
 
 <style lang="scss" scoped>
+@import '@/styles/tokens/_index.scss';
+
 .navbar {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   z-index: 999;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: $gradient-primary;
 }
 
 .navbar-status-bar {
@@ -64,33 +64,37 @@ function handleBack() {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 44px;
-  padding: 0 16px;
+  height: 88rpx; // 44px
+  padding: 0 $space-lg;
 }
 
 .navbar-left {
-  width: 44px;
+  width: $touch-target-min;
+  height: $touch-target-min;
   display: flex;
   align-items: center;
+  justify-content: center;
+  margin-left: -$space-sm;
 }
 
 .back-icon {
-  font-size: 20px;
-  color: #fff;
+  font-size: $font-size-2xl;
+  color: $color-text-inverse;
 }
 
 .navbar-title {
   flex: 1;
   text-align: center;
-  font-size: 18px;
-  font-weight: 600;
-  color: #fff;
+  font-size: $font-size-xl;
+  font-weight: $font-weight-semibold;
+  color: $color-text-inverse;
 }
 
 .navbar-right {
-  width: 44px;
+  width: $touch-target-min;
   display: flex;
   justify-content: flex-end;
+  align-items: center;
 }
 
 .navbar-placeholder {
