@@ -3,9 +3,16 @@
     <NavBar title="题库管理" show-back />
     
     <view class="content">
-      <BaseButton variant="primary" size="xl" block @click="showAddModal = true">
-        <text class="add-icon-inline">+</text> 添加题库
-      </BaseButton>
+      <!-- 毛玻璃质感添加按钮 -->
+      <view class="add-library-card" @click="showAddModal = true">
+        <view class="add-card-left">
+          <text class="add-card-title">添加题库</text>
+          <text class="add-card-subtitle">创建新的学习题库，AI 智能解析题目</text>
+        </view>
+        <view class="add-btn-circle">
+          <text class="add-plus-icon">+</text>
+        </view>
+      </view>
 
       <view v-if="libraries.length > 0" class="library-list">
         <view
@@ -13,21 +20,29 @@
           :key="library._id"
           class="library-card"
         >
-          <view class="library-info" @click="startQuiz(library)">
-            <text class="library-name">{{ library.name }}</text>
-            <text class="library-desc">{{ library.description || '暂无描述' }}</text>
-            <view class="library-meta">
-              <text class="meta-item">{{ library.totalQuestions }} 道题</text>
-              <text class="meta-divider">·</text>
-              <text class="meta-item">{{ formatDate(library.createdAt) }}</text>
-            </view>
+          <!-- 左侧封面占位 -->
+          <view class="library-cover" @click="startQuiz(library)">
+            <text class="cover-emoji">{{ getLibraryEmoji(library._id) }}</text>
           </view>
-          <view class="library-actions">
-            <view class="action-btn edit" @click.stop="editLibrary(library)">
-              <text>编辑</text>
+          
+          <!-- 中间内容区 -->
+          <view class="library-content" @click="startQuiz(library)">
+            <text class="library-name">{{ library.name }}</text>
+            <view class="library-meta">
+              <text class="meta-question-count">{{ library.totalQuestions }} 道题</text>
+              <text class="meta-dot">·</text>
+              <text class="meta-date">{{ formatDate(library.createdAt) }}</text>
             </view>
-            <view class="action-btn delete" @click.stop="deleteLibrary(library)">
-              <text>删除</text>
+            <text class="library-desc">{{ library.description || '暂无描述' }}</text>
+          </view>
+          
+          <!-- 右侧操作图标 -->
+          <view class="library-actions">
+            <view class="action-icon-wrap edit" @click.stop="editLibrary(library)">
+              <text class="action-icon-emoji">✎</text>
+            </view>
+            <view class="action-icon-wrap delete" @click.stop="deleteLibrary(library)">
+              <text class="action-icon-emoji">✕</text>
             </view>
           </view>
         </view>
@@ -283,6 +298,7 @@ import { useLibraryStore } from '@/stores/library'
 import { useUserStore } from '@/stores/user'
 import { parseMarkdown } from '@/utils/parser'
 import { parseFileToQuestions, aiParseQuestions } from '@/utils/fileParser'
+import { getLibraryEmoji } from '@/utils/libraryEmoji'
 import type { Library, Question } from '@/types'
 
 const libraryStore = useLibraryStore()
@@ -631,85 +647,210 @@ async function saveLibrary() {
   padding: $space-xl;
 }
 
-.add-icon-inline {
-  font-size: $font-size-2xl;
-  margin-right: $space-sm;
+// ============ 毛玻璃添加卡片 ============
+.add-library-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 32rpx 36rpx;
+  background: $color-glass-bg;
+  border-radius: 24rpx;
+  border: 2rpx solid $color-glass-border;
+  box-shadow: $shadow-glass;
+  // 微信小程序部分版本不支持 backdrop-filter，用 RGBA 背景做降级
+  transition: transform $duration-instant, box-shadow $duration-fast;
+
+  &:active {
+    transform: scale(0.98);
+    box-shadow: 0 2rpx 12rpx rgba(74, 71, 163, 0.06);
+  }
 }
 
+.add-card-left {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+
+.add-card-title {
+  font-size: 32rpx;
+  font-weight: $font-weight-semibold;
+  background: $gradient-primary;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  color: transparent;
+}
+
+.add-card-subtitle {
+  font-size: 24rpx;
+  color: #8E8E93;
+  line-height: 1.4;
+}
+
+.add-btn-circle {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 50%;
+  background: $color-icon-blue-bg;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: transform $duration-instant;
+
+  .add-library-card:active & {
+    transform: scale(0.9);
+  }
+}
+
+.add-plus-icon {
+  font-size: 44rpx;
+  color: $color-icon-blue;
+  font-weight: 300;
+  line-height: 1;
+}
+
+// ============ 题库列表 ============
 .library-list {
   display: flex;
   flex-direction: column;
-  gap: $space-lg;
-  margin-top: $space-xl;
+  gap: 24rpx;
+  margin-top: 40rpx;
 }
 
+// ============ 题库卡片 — Neumorphic 微立体 ============
 .library-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 24rpx;
   background: $color-bg-card;
-  border-radius: $radius-xl;
-  padding: $space-xl;
-  box-shadow: $shadow-md;
+  border-radius: 24rpx;
+  padding: 28rpx 32rpx;
+  box-shadow: $shadow-neu-md;
+  transition: transform $duration-instant, box-shadow $duration-fast;
+
+  &:active {
+    transform: scale(0.985);
+    box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.02);
+  }
 }
 
-.library-info {
-  margin-bottom: $space-lg;
+// --- 左侧封面占位 ---
+.library-cover {
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 16rpx;
+  background: linear-gradient(135deg, #F0F0F3 0%, #E5E5EA 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.cover-emoji {
+  font-size: 44rpx;
+  line-height: 1;
+}
+
+// --- 中间内容区 ---
+.library-content {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .library-name {
-  display: block;
-  font-size: $font-size-xl;
+  font-size: 32rpx;
   font-weight: $font-weight-semibold;
   color: $color-text-primary;
-  margin-bottom: $space-sm;
-}
-
-.library-desc {
+  margin-bottom: 8rpx;
   display: block;
-  font-size: $font-size-base;
-  color: $color-text-secondary;
-  margin-bottom: $space-md;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .library-meta {
   display: flex;
   align-items: center;
+  margin-bottom: 10rpx;
 }
 
-.meta-item {
-  font-size: $font-size-xs;
-  color: $color-text-tertiary;
+.meta-question-count {
+  font-size: 24rpx;
+  color: #8E8E93;
 }
 
-.meta-divider {
-  margin: 0 $space-sm;
-  color: $color-text-disabled;
+.meta-dot {
+  margin: 0 10rpx;
+  font-size: 24rpx;
+  color: #C7C7CC;
 }
 
+.meta-date {
+  font-size: 24rpx;
+  color: #8E8E93;
+}
+
+.library-desc {
+  font-size: 26rpx;
+  color: $color-text-secondary;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+  overflow: hidden;
+}
+
+// --- 右侧操作图标 ---
 .library-actions {
   display: flex;
-  gap: $space-md;
-  padding-top: $space-lg;
-  border-top: 1rpx solid $color-border-base;
+  flex-direction: column;
+  gap: 14rpx;
+  flex-shrink: 0;
 }
 
-.action-btn {
-  flex: 1;
-  text-align: center;
-  padding: $space-md;
-  border-radius: $radius-md;
-  font-size: $font-size-base;
+.action-icon-wrap {
+  width: 68rpx;
+  height: 68rpx;
+  border-radius: 16rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2rpx solid transparent;
+  transition: background $duration-instant, border-color $duration-instant, transform $duration-instant;
+
+  &:active {
+    transform: scale(0.88);
+  }
 
   &.edit {
-    background: $color-primary-light;
-    color: $color-primary;
+    border-color: $color-border-input;
+    background: transparent;
+
+    &:active {
+      background: $color-bg-hover;
+    }
   }
 
   &.delete {
-    background: $color-error-bg;
-    color: $color-error;
-  }
+    border-color: $color-action-delete;
+    background: transparent;
 
-  &:active {
-    opacity: 0.7;
+    &:active {
+      background: $color-action-delete-bg;
+    }
+  }
+}
+
+.action-icon-emoji {
+  font-size: 28rpx;
+  line-height: 1;
+  color: $color-text-secondary;
+
+  .action-icon-wrap.delete & {
+    color: $color-action-delete;
   }
 }
 

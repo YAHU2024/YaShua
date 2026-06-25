@@ -53,7 +53,10 @@ function handleBack() {
   left: 0;
   right: 0;
   z-index: 999;
-  background: $gradient-primary;
+  background: $color-glass-nav-bg;
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 1rpx solid $color-glass-nav-border;
 }
 
 .navbar-status-bar {
@@ -79,7 +82,7 @@ function handleBack() {
 
 .back-icon {
   font-size: $font-size-2xl;
-  color: $color-text-inverse;
+  color: $color-text-primary;
 }
 
 .navbar-title {
@@ -87,7 +90,7 @@ function handleBack() {
   text-align: center;
   font-size: $font-size-xl;
   font-weight: $font-weight-semibold;
-  color: $color-text-inverse;
+  color: $color-text-primary;
 }
 
 .navbar-right {

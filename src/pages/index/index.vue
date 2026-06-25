@@ -1,79 +1,138 @@
 <template>
   <view class="page">
+    <!-- ===== 1. 顶部状态栏 / 品牌 Header ===== -->
     <view class="header">
-      <view class="header-content">
-        <text class="app-title">智慧刷题</text>
-        <text class="app-subtitle">轻松学习，高效备考</text>
+      <!-- 装饰光晕 -->
+      <view class="header-glow header-glow-1"></view>
+      <view class="header-glow header-glow-2"></view>
+      
+      <view class="header-top">
+        <view class="header-top-spacer"></view>
+        <text class="header-brand">智慧刷题</text>
+        <view class="header-top-spacer header-actions">
+          <text class="header-icon-btn" @click="goToSettings">⚙</text>
+        </view>
+      </view>
+      <text class="header-subtitle">轻松学习，高效备考</text>
+    </view>
+
+    <!-- ===== 2. 环形进度盘区域 ===== -->
+    <view class="stats-container">
+      <view class="stats-card">
+        <text class="stats-card-title">今日学习进度</text>
+        <CircularProgress
+          :value="statsStore.todayQuestions"
+          :total="Math.max(statsStore.todayQuestions, 1)"
+          label="已完成"
+          sub-label="今日正确率"
+        />
+        <!-- 统计摘要行 -->
+        <view class="stats-summary">
+          <view class="stats-summary-item">
+            <text class="stats-summary-value">{{ statsStore.todayQuestions }}</text>
+            <text class="stats-summary-label">今日完成</text>
+          </view>
+          <view class="stats-summary-divider"></view>
+          <view class="stats-summary-item">
+            <text class="stats-summary-value correct">{{ statsStore.todayCorrect }}</text>
+            <text class="stats-summary-label">正确</text>
+          </view>
+          <view class="stats-summary-divider"></view>
+          <view class="stats-summary-item">
+            <text class="stats-summary-value total">{{ statsStore.totalQuestions }}</text>
+            <text class="stats-summary-label">累计</text>
+          </view>
+        </view>
       </view>
     </view>
 
-    <view class="content">
-      <view class="stats-section">
-        <StatsCard
-          title="今日学习"
-          :value="statsStore.todayQuestions"
-          label="已完成"
-          :sub-value="statsStore.todayCorrect"
-          sub-label="正确"
-          :progress="statsStore.getTodayAccuracy()"
-        />
-      </view>
-
-      <view class="mode-section">
-        <text class="section-title">刷题模式</text>
-        <view class="mode-grid">
-          <view class="mode-card" @click="startQuiz('sequence')">
-            <view class="mode-icon sequence-icon">📚</view>
-            <text class="mode-name">顺序练习</text>
-            <text class="mode-desc">按题库顺序练习</text>
+    <!-- ===== 3. 功能金刚区（刷题模式）===== -->
+    <view class="mode-section">
+      <text class="section-title">刷题模式</text>
+      <view class="mode-grid">
+        <view class="mode-card" @click="startQuiz('sequence')">
+          <view class="mode-icon-wrapper sequence">
+            <text class="mode-icon-text">📖</text>
           </view>
-          <view class="mode-card" @click="startQuiz('random')">
-            <view class="mode-icon random-icon">🎲</view>
-            <text class="mode-name">随机练习</text>
-            <text class="mode-desc">随机出题练习</text>
+          <text class="mode-name">顺序练习</text>
+          <text class="mode-desc">按序刷题</text>
+        </view>
+        <view class="mode-card" @click="startQuiz('random')">
+          <view class="mode-icon-wrapper random">
+            <text class="mode-icon-text">🎲</text>
           </view>
-          <view class="mode-card" @click="startQuiz('wrong')">
-            <view class="mode-icon wrong-icon">❌</view>
-            <text class="mode-name">错题重做</text>
-            <text class="mode-desc">只练习错题</text>
+          <text class="mode-name">随机练习</text>
+          <text class="mode-desc">随机出题</text>
+        </view>
+        <view class="mode-card" @click="startQuiz('wrong')">
+          <view class="mode-icon-wrapper wrong">
+            <text class="mode-icon-text">❌</text>
           </view>
+          <text class="mode-name">错题重做</text>
+          <text class="mode-desc">攻克薄弱</text>
         </view>
       </view>
+    </view>
 
-      <view class="library-section">
-        <view class="section-header">
-          <text class="section-title">题库列表</text>
-          <text class="section-more" @click="goToLibrary">查看全部 →</text>
-        </view>
-        <view v-if="libraries.length > 0" class="library-list">
-          <view
-            v-for="library in libraries.slice(0, 3)"
-            :key="library._id"
-            class="library-item"
-            @click="startQuizFromLibrary(library, 'sequence')"
-          >
+    <!-- ===== 4. 推荐题库（多层叠加卡片）===== -->
+    <view class="library-section">
+      <view class="section-header">
+        <text class="section-title">推荐题库</text>
+        <text class="section-more" @click="goToLibrary">查看全部 →</text>
+      </view>
+
+      <view v-if="libraries.length > 0" class="library-stack">
+        <!-- 背景叠加层 -->
+        <view
+          v-for="(_, i) in Math.min(libraries.length, 3)"
+          :key="'bg-' + i"
+          class="library-card-bg"
+          :style="getStackStyle(i)"
+        ></view>
+        <!-- 前景可交互卡片 -->
+        <view
+          v-for="(library, i) in libraries.slice(0, 3)"
+          :key="library._id"
+          class="library-card"
+          :class="{ 'is-first': i === 0 }"
+          :style="getStackStyle(i)"
+          @click="startQuizFromLibrary(library, 'sequence')"
+        >
+          <view class="library-card-inner">
+            <!-- 题库封面 emoji（与题库管理/错题本页统一） -->
+            <view class="library-cover-sm">
+              <text class="library-cover-emoji">{{ getLibraryEmoji(library._id) }}</text>
+            </view>
             <view class="library-info">
               <text class="library-name">{{ library.name }}</text>
               <text class="library-count">{{ library.totalQuestions }} 道题</text>
             </view>
-            <view class="library-arrow">›</view>
+            <view class="library-action">
+              <text class="library-action-text">开始</text>
+              <text class="library-arrow">→</text>
+            </view>
           </view>
         </view>
+      </view>
+
+      <view v-else class="library-empty">
         <EmptyState
-          v-else
           icon="📝"
           title="暂无题库"
           description="点击下方按钮添加题库开始学习"
         />
       </view>
+    </view>
 
-      <view class="action-section">
-        <BaseButton variant="primary" size="xl" block @click="goToLibrary">题库管理</BaseButton>
-      </view>
+    <!-- ===== 5. 底部操作 & 页脚 ===== -->
+    <view class="action-section">
+      <BaseButton variant="primary" size="xl" block @click="goToLibrary">
+        题库管理
+      </BaseButton>
+    </view>
 
-      <view class="footer">
-        <text class="footer-text">坚持每天刷题，进步看得见 ✨</text>
-      </view>
+    <view class="footer">
+      <text class="footer-text">坚持每天刷题，进步看得见 ✨</text>
     </view>
   </view>
 </template>
@@ -81,13 +140,14 @@
 <script setup lang="ts">
 import { onMounted, computed } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
-import StatsCard from '@/components/StatsCard.vue'
+import CircularProgress from '@/components/CircularProgress.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import BaseButton from '@/components/BaseButton.vue'
 import { useUserStore } from '@/stores/user'
 import { useLibraryStore } from '@/stores/library'
 import { useStatsStore } from '@/stores/stats'
 import { useWrongStore } from '@/stores/wrong'
+import { getLibraryEmoji } from '@/utils/libraryEmoji'
 import type { Library } from '@/types'
 
 const userStore = useUserStore()
@@ -96,6 +156,15 @@ const statsStore = useStatsStore()
 const wrongStore = useWrongStore()
 
 const libraries = computed(() => libraryStore.libraries)
+
+function getStackStyle(index: number) {
+  const offset = index * 12
+  return {
+    zIndex: 3 - index,
+    transform: `translateX(${offset}rpx)`,
+    opacity: index === 0 ? 1 : index === 1 ? 0.85 : 0.65
+  }
+}
 
 onMounted(async () => {
   await userStore.doLogin()
@@ -110,7 +179,6 @@ onShow(async () => {
   if (!userStore.openid) {
     await userStore.doLogin()
   }
-  console.log('[index.onShow] statsStore 当前值:', { todayQuestions: statsStore.todayQuestions, todayCorrect: statsStore.todayCorrect, total: statsStore.totalQuestions, correct: statsStore.correctCount })
 })
 
 async function startQuiz(mode: 'sequence' | 'random' | 'wrong') {
@@ -151,96 +219,234 @@ function startQuizFromLibrary(library: Library, mode: 'sequence' | 'random' | 'w
 function goToLibrary() {
   uni.switchTab({ url: '/pages/library/index' })
 }
+
+function goToSettings() {
+  uni.navigateTo({ url: '/pages/settings/index' })
+}
 </script>
 
 <style lang="scss" scoped>
 @import '@/styles/tokens/_index.scss';
 
+// ==============================
+//  PAGE BASE
+// ==============================
 .page {
   min-height: 100vh;
   background: $color-bg-page;
+  padding-bottom: 120rpx;
 }
 
+// ==============================
+//  1. HEADER — 深紫渐变 + 圆弧底
+// ==============================
 .header {
+  position: relative;
   background: $gradient-primary;
   border-radius: 0 0 $radius-3xl $radius-3xl;
-  padding: 120rpx $space-2xl $space-3xl;
+  padding: calc(var(--status-bar-height) + 32rpx) $space-2xl $space-3xl $space-2xl;
+  overflow: hidden;
 }
 
-.header-content {
+// 装饰光晕
+.header-glow {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  
+  &-1 {
+    width: 320rpx;
+    height: 320rpx;
+    background: radial-gradient(circle, rgba(255,255,255,0.10) 0%, transparent 70%);
+    top: -100rpx;
+    right: -80rpx;
+  }
+  
+  &-2 {
+    width: 200rpx;
+    height: 200rpx;
+    background: radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 70%);
+    bottom: 20rpx;
+    left: -60rpx;
+  }
+}
+
+.header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+.header-top-spacer {
+  width: 64rpx;
+  height: 64rpx;
+  
+  &.header-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+  }
+}
+
+.header-icon-btn {
+  font-size: 40rpx;
+  color: rgba(255,255,255,0.7);
+  padding: 8rpx;
+  
+  &:active {
+    opacity: 0.6;
+  }
+}
+
+.header-brand {
+  font-size: $font-size-2xl;
+  font-weight: $font-weight-bold;
+  color: $color-text-inverse;
+  letter-spacing: 2rpx;
+}
+
+.header-subtitle {
+  display: block;
+  text-align: center;
+  font-size: $font-size-sm;
+  color: rgba(255, 255, 255, 0.7);
+  margin-top: $space-sm;
+}
+
+// ==============================
+//  2. STATS — 微立体进度卡片
+// ==============================
+.stats-container {
+  padding: 0 $page-horizontal-padding;
+  margin-top: -48rpx;
+  position: relative;
+  z-index: 10;
+}
+
+.stats-card {
+  background: $color-bg-card;
+  border-radius: $radius-xl;
+  padding: $card-padding;
+  box-shadow: $shadow-neu-md;
+}
+
+.stats-card-title {
+  display: block;
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+  margin-bottom: $space-lg;
   text-align: center;
 }
 
-.app-title {
-  display: block;
-  font-size: $font-size-3xl;
+.stats-summary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: $space-lg;
+  padding-top: $space-lg;
+  border-top: 1rpx solid $color-border-base;
+}
+
+.stats-summary-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 $space-xl;
+}
+
+.stats-summary-value {
+  font-size: 36rpx;
   font-weight: $font-weight-bold;
-  color: $color-text-inverse;
-  margin-bottom: $space-sm;
+  color: $color-primary;
+  
+  &.correct {
+    color: $color-success;
+  }
+  
+  &.total {
+    color: $color-text-secondary;
+  }
 }
 
-.app-subtitle {
-  font-size: $font-size-base;
-  color: rgba(255, 255, 255, 0.8);
+.stats-summary-label {
+  font-size: $font-size-xs;
+  color: $color-text-subtitle;
+  margin-top: 4rpx;
 }
 
-.content {
+.stats-summary-divider {
+  width: 2rpx;
+  height: 40rpx;
+  background: $color-border-base;
+}
+
+// ==============================
+//  3. MODE GRID — 3列金刚区
+// ==============================
+.mode-section {
   padding: 0 $page-horizontal-padding;
-  padding-bottom: 240rpx;
-}
-
-.stats-section {
-  margin-top: -40rpx;
-  margin-bottom: $section-gap;
+  margin-top: $section-gap;
 }
 
 .section-title {
   font-size: $font-size-xl;
   font-weight: $font-weight-semibold;
   color: $color-text-primary;
+  display: block;
   margin-bottom: $space-lg;
 }
 
-.mode-section {
-  margin-bottom: $section-gap;
-}
-
 .mode-grid {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
   gap: $space-md;
 }
 
 .mode-card {
-  flex: 1;
   background: $color-bg-card;
-  border-radius: $radius-xl;
-  padding: $space-xl $space-md;
-  text-align: center;
-  box-shadow: $shadow-md;
-  transition: transform $duration-fast;
-
+  border-radius: $radius-lg;
+  padding: $space-xl $space-sm $space-lg;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-shadow: $shadow-neu-sm;
+  transition: transform $duration-fast $ease-default;
+  
   &:active {
     transform: scale(0.95);
   }
 }
 
-.mode-icon {
-  width: 96rpx;
-  height: 96rpx;
+.mode-icon-wrapper {
+  width: 88rpx;
+  height: 88rpx;
   border-radius: $radius-lg;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 48rpx;
-  margin: 0 auto $space-md;
+  margin-bottom: $space-md;
   
-  &.sequence-icon { background: $color-info-bg; }
-  &.random-icon   { background: $color-success-bg; }
-  &.wrong-icon    { background: $color-warning-bg; }
+  &.sequence {
+    background: linear-gradient(135deg, #E8F0FE, #D4E4FC);
+  }
+  
+  &.random {
+    background: linear-gradient(135deg, #E6F7EE, #D4F0E2);
+  }
+  
+  &.wrong {
+    background: linear-gradient(135deg, #FFF3E8, #FEE8D4);
+  }
+}
+
+.mode-icon-text {
+  font-size: 40rpx;
+  line-height: 1;
 }
 
 .mode-name {
-  display: block;
   font-size: $font-size-md;
   font-weight: $font-weight-semibold;
   color: $color-text-primary;
@@ -248,16 +454,16 @@ function goToLibrary() {
 }
 
 .mode-desc {
-  font-size: $font-size-sm;
-  color: $color-text-tertiary;
+  font-size: $font-size-xs;
+  color: $color-text-subtitle;
 }
 
+// ==============================
+//  4. LIBRARY STACK — 多层叠加
+// ==============================
 .library-section {
-  background: $color-bg-card;
-  border-radius: $radius-xl;
-  padding: $card-padding;
-  margin-bottom: $section-gap;
-  box-shadow: $shadow-md;
+  padding: 0 $page-horizontal-padding;
+  margin-top: $section-gap;
 }
 
 .section-header {
@@ -270,54 +476,129 @@ function goToLibrary() {
 .section-more {
   font-size: $font-size-base;
   color: $color-primary;
+  font-weight: $font-weight-medium;
+  
+  &:active {
+    opacity: 0.7;
+  }
 }
 
-.library-list {
-  display: flex;
-  flex-direction: column;
-  gap: $list-gap;
+.library-stack {
+  position: relative;
+  height: 220rpx; // 容纳最多3层卡片
 }
 
-.library-item {
+.library-card-bg,
+.library-card {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  border-radius: $radius-xl;
+  transition: transform $duration-base $ease-default;
+}
+
+.library-card-bg {
+  height: 140rpx;
+  background: $color-bg-card;
+  box-shadow: $shadow-neu-sm;
+  pointer-events: none;
+}
+
+.library-card {
+  &.is-first {
+    box-shadow: $shadow-neu-md;
+    .library-card-inner {
+      background: $color-bg-card;
+    }
+  }
+}
+
+.library-card-inner {
   display: flex;
   align-items: center;
-  padding: $space-lg;
-  background: $color-bg-input;
-  border-radius: $radius-lg;
+  padding: $space-xl $space-lg;
+  border-radius: $radius-xl;
+  background: $color-bg-card;
+  box-shadow: $shadow-neu-sm;
+}
 
-  &:active {
-    background: $color-bg-hover;
-  }
+// 题库封面 emoji（与题库管理/错题本页统一风格）
+.library-cover-sm {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 16rpx;
+  background: linear-gradient(135deg, #F0F0F3 0%, #E5E5EA 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: $space-lg;
+  flex-shrink: 0;
+}
+
+.library-cover-emoji {
+  font-size: 36rpx;
+  line-height: 1;
 }
 
 .library-info {
   flex: 1;
+  min-width: 0;
 }
 
 .library-name {
   display: block;
   font-size: $font-size-lg;
-  font-weight: $font-weight-medium;
+  font-weight: $font-weight-semibold;
   color: $color-text-primary;
-  margin-bottom: $space-xs;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-bottom: 4rpx;
 }
 
 .library-count {
   font-size: $font-size-xs;
-  color: $color-text-tertiary;
+  color: $color-text-subtitle;
+}
+
+.library-action {
+  display: flex;
+  align-items: center;
+  margin-left: $space-md;
+  flex-shrink: 0;
+}
+
+.library-action-text {
+  font-size: $font-size-base;
+  color: $color-primary;
+  font-weight: $font-weight-medium;
 }
 
 .library-arrow {
-  font-size: $font-size-2xl;
-  color: $color-text-disabled;
+  font-size: $font-size-sm;
+  color: $color-primary;
+  margin-left: 4rpx;
 }
 
+.library-empty {
+  background: $color-bg-card;
+  border-radius: $radius-xl;
+  padding: $card-padding;
+  box-shadow: $shadow-neu-md;
+}
+
+// ==============================
+//  5. ACTION & FOOTER
+// ==============================
 .action-section {
-  margin-bottom: $section-gap;
+  padding: 0 $page-horizontal-padding;
+  margin-top: $section-gap;
 }
 
 .footer {
   text-align: center;
+  margin-top: $space-xl;
 }
 
 .footer-text {

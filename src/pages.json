@@ -46,12 +46,12 @@
   "globalStyle": {
     "navigationBarTextStyle": "white",
     "navigationBarTitleText": "智慧刷题",
-    "navigationBarBackgroundColor": "#667eea",
-    "backgroundColor": "#f5f7fa"
+    "navigationBarBackgroundColor": "#4A47A3",
+    "backgroundColor": "#F5F5F7"
   },
   "tabBar": {
     "color": "#999999",
-    "selectedColor": "#667eea",
+    "selectedColor": "#4A47A3",
     "borderStyle": "black",
     "backgroundColor": "#ffffff",
     "list": [

@@ -7,3 +7,13 @@ $shadow-md: 0 4rpx 24rpx rgba(0, 0, 0, 0.06);     // 标准卡片（列表项、
 $shadow-lg: 0 4rpx 24rpx rgba(0, 0, 0, 0.08);     // 重点卡片（题目卡片）
 $shadow-xl: 0 8rpx 40rpx rgba(0, 0, 0, 0.10);     // 弹窗/Modal
 $shadow-top: 0 -4rpx 24rpx rgba(0, 0, 0, 0.06);   // 底部固定栏阴影
+
+// ============ Neumorphic 微立体阴影层级 ============
+$shadow-neu-sm: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);              // 轻微悬浮（金刚区小卡片）
+$shadow-neu-md: 0 8rpx 32rpx rgba(0, 0, 0, 0.04);              // 标准卡片悬浮（进度盘、题库卡片）
+$shadow-neu-lg: 0 12rpx 48rpx rgba(0, 0, 0, 0.06);             // 重点卡片（弹窗级悬浮）
+$shadow-neu-highlight: 0 -2rpx 8rpx rgba(255, 255, 255, 0.85); // 顶部高光（叠加到阴影上）
+
+// ============ 毛玻璃卡片专用阴影 ============
+$shadow-glass: 0 4rpx 20rpx rgba(74, 71, 163, 0.08), 0 -2rpx 8rpx rgba(255, 255, 255, 0.5);  // 添加题库毛玻璃卡片
+$shadow-glass-nav: 0 1rpx 0 rgba(0, 0, 0, 0.04), 0 4rpx 16rpx rgba(0, 0, 0, 0.03);             // 导航栏毛玻璃阴影

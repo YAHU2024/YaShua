@@ -3,14 +3,19 @@
 // ==========================================
 
 // ============ 品牌色 ============
-$color-primary: #667eea;           // 主色（NavBar、按钮渐变起点）
-$color-primary-dark: #5a6fd6;     // 主色深（:active 按压态）
-$color-primary-light: #f0f5ff;    // 主色浅（选中态背景、卡片悬浮）
-$color-secondary: #764ba2;        // 辅色（渐变终点）
+$color-primary: #4A47A3;           // 主色 — 渐变深紫起点
+$color-primary-dark: #3D3A8A;     // 主色深（:active 按压态）
+$color-primary-light: #F0EEFF;    // 主色浅（选中态背景、卡片悬浮）
+$color-secondary: #7048B6;        // 辅色 — 渐变深紫终点
 
 // 品牌渐变（项目中复用率最高的样式模式）
 $gradient-primary: linear-gradient(135deg, $color-primary 0%, $color-secondary 100%);
 $gradient-success: linear-gradient(135deg, #52c41a 0%, #389e0d 100%);
+
+// ============ Neumorphic 专用色 ============
+$color-bg-purple-light: rgba(74, 71, 163, 0.06);   // 紫色极浅底（进度盘底环）
+$color-bg-purple-mid: rgba(74, 71, 163, 0.12);     // 紫色中浅底（图标底）
+$color-text-subtitle: #8E8E93;                       // 副标题浅灰色
 
 // ============ 功能色 ============
 $color-success: #52c41a;          // 成功（正确提示、正确答案）
@@ -36,11 +41,23 @@ $color-text-disabled: #cccccc;    // 禁用文字
 $color-text-inverse: #ffffff;     // 反色文字（深色背景上使用）
 
 // ============ 中立色 — 背景 ============
-$color-bg-page: #f5f7fa;          // 页面背景
+$color-bg-page: #F5F5F7;          // 页面背景（暖米白/灰白，营造卡片悬浮感）
 $color-bg-card: #ffffff;          // 卡片背景
 $color-bg-input: #f8f9fa;         // 输入区域背景（未选中选项、表单区）
 $color-bg-hover: #f0f0f0;         // 按压/悬停态背景
 $color-bg-mask: rgba(0, 0, 0, 0.5); // 弹窗遮罩
+
+// ============ Neumorphic 操作按钮专用色 ============
+$color-action-delete: #E57373;                    // 温和红色 — 删除按钮图标/边框
+$color-action-delete-bg: rgba(229, 115, 115, 0.06); // 删除按钮按压态背景
+$color-icon-blue: #5B8DEF;                         // 蓝色加号图标
+$color-icon-blue-bg: rgba(91, 141, 239, 0.1);     // 蓝色加号图标背景
+
+// ============ 毛玻璃效果色 ============
+$color-glass-bg: rgba(255, 255, 255, 0.68);     // 毛玻璃卡片背景
+$color-glass-border: rgba(255, 255, 255, 0.5);   // 毛玻璃边框
+$color-glass-nav-bg: rgba(245, 245, 247, 0.82);  // 导航栏毛玻璃背景
+$color-glass-nav-border: rgba(0, 0, 0, 0.06);    // 导航栏底部边框
 
 // ============ 中立色 — 边框 ============
 $color-border-base: #f0f0f0;      // 基础分割线

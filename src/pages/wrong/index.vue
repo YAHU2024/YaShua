@@ -10,11 +10,25 @@
           class="group-card"
           @click="goDetail(group)"
         >
-          <view class="group-info">
-            <text class="group-name">{{ group.libraryName }}</text>
-            <text class="group-count">{{ group.items.length }} 道错题</text>
+          <!-- 左侧：图片占位（对齐 library-cover） -->
+          <view class="card-cover">
+            <text class="cover-icon">{{ getLibraryEmoji(group.libraryId) }}</text>
           </view>
-          <view class="group-arrow">›</view>
+
+          <!-- 中间：标题 + 红色错题数副标题 -->
+          <view class="card-content">
+            <text class="card-name">{{ group.libraryName }}</text>
+            <text class="card-sub">{{ group.items.length }} 道错题</text>
+          </view>
+
+          <!-- 右侧：Pill Badge 两段式胶囊 + 箭头 -->
+          <view class="card-right">
+            <view v-if="group.totalQuestions > 0" class="pill-badge">
+              <text class="pill pill-wrong">{{ group.items.length }}错</text>
+              <text class="pill pill-total">{{ group.totalQuestions }}总</text>
+            </view>
+            <text class="card-arrow">›</text>
+          </view>
         </view>
       </view>
 
@@ -36,6 +50,7 @@ import EmptyState from '@/components/EmptyState.vue'
 import { useWrongStore } from '@/stores/wrong'
 import { useUserStore } from '@/stores/user'
 import { useLibraryStore } from '@/stores/library'
+import { getLibraryEmoji } from '@/utils/libraryEmoji'
 import type { WrongQuestion, Question } from '@/types'
 
 const wrongStore = useWrongStore()
@@ -47,6 +62,7 @@ const wrongList = ref<(WrongQuestion & { question: Question })[]>([])
 interface WrongGroup {
   libraryId: string
   libraryName: string
+  totalQuestions: number
   items: (WrongQuestion & { question: Question })[]
 }
 
@@ -59,6 +75,7 @@ const groupedList = computed<WrongGroup[]>(() => {
       groups[libId] = {
         libraryId: libId,
         libraryName: getLibraryName(libId),
+        totalQuestions: getLibraryTotal(libId),
         items: []
       }
     }
@@ -72,6 +89,12 @@ function getLibraryName(libraryId: string): string {
   if (libraryId === '__unknown__') return '未分类'
   const lib = libraryStore.libraries.find(l => l._id === libraryId)
   return lib?.name || '未分类'
+}
+
+function getLibraryTotal(libraryId: string): number {
+  if (libraryId === '__unknown__') return 0
+  const lib = libraryStore.libraries.find(l => l._id === libraryId)
+  return lib?.totalQuestions ?? 0
 }
 
 onMounted(async () => {
@@ -112,50 +135,117 @@ function goDetail(group: WrongGroup) {
 
 .content {
   padding: $space-xl;
-  padding-bottom: 80rpx;
+  padding-bottom: calc(120rpx + env(safe-area-inset-bottom));
 }
 
 .wrong-groups {
   display: flex;
   flex-direction: column;
-  gap: $list-gap;
+  gap: $list-gap; // 24rpx
 }
 
+// ============ Neumorphic 错题卡片（对齐 .library-card） ============
 .group-card {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: $space-lg $space-xl;
+  gap: 24rpx;
   background: $color-bg-card;
-  border-radius: $radius-xl;
-  box-shadow: $shadow-md;
-  transition: background $duration-instant;
+  border-radius: 24rpx;              // 与题库管理页一致（= $radius-lg）
+  padding: 28rpx 32rpx;
+  box-shadow: $shadow-neu-md;        // ✅ Neumorphic 微立体阴影
+  transition: transform $duration-instant, box-shadow $duration-fast;
 
   &:active {
-    background: #fafafa;
+    transform: scale(0.985);
+    box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.02);
   }
 }
 
-.group-info {
+// --- 左侧图片占位（复用 .library-cover 规格） ---
+.card-cover {
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 16rpx;              // = $radius-md
+  background: linear-gradient(135deg, #F0F0F3 0%, #E5E5EA 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.cover-icon {
+  font-size: 44rpx;
+  line-height: 1;
+}
+
+// --- 中间内容区 ---
+.card-content {
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
+  gap: 8rpx;
+  overflow: hidden;
 }
 
-.group-name {
-  font-size: 34rpx;
+.card-name {
+  font-size: 32rpx;                  // = $font-size-lg
   font-weight: $font-weight-semibold;
-  color: $color-text-primary;
+  color: $color-text-primary;        // 黑色加粗主标题
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.group-count {
-  font-size: $font-size-xs;
-  color: $color-error;
-  margin-top: 12rpx;
+.card-sub {
+  font-size: $font-size-xs;          // 22rpx 红色小字
+  color: $color-error;               // #ff4d4f
+  line-height: 1;
 }
 
-.group-arrow {
+// --- 右侧：Pill Badge + 箭头 ---
+.card-right {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  flex-shrink: 0;
+}
+
+// ============ Pill Badge 两段式胶囊 ============
+.pill-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: $radius-full;       // 整体胶囊圆角
+  overflow: hidden;
+  height: 40rpx;                     // 胶囊高度
+}
+
+.pill {
+  font-size: 20rpx;                  // 比 $font-size-xs 略小，精致感
+  line-height: 1;
+  padding: 0 14rpx;
+  height: 100%;
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  font-weight: $font-weight-medium;
+}
+
+.pill-wrong {
+  background: $color-error-bg;       // #fff2f0 浅红
+  color: $color-error;               // #ff4d4f
+}
+
+.pill-total {
+  background: #F0F0F3;               // 浅灰（与 cover 渐变起点同色系）
+  color: $color-text-subtitle;       // #8E8E93
+}
+
+// --- 箭头 ---
+.card-arrow {
   font-size: 48rpx;
-  color: $color-text-disabled;
+  color: $color-text-disabled;       // #cccccc 灰色箭头
   font-weight: 300;
+  line-height: 1;
 }
 </style>

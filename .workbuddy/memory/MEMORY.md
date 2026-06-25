@@ -22,3 +22,4 @@
 - 错题收集为实时逐题记录（confirmAnswer 答错即写入），同时保留交卷时的批量写入作为兜底
 - 进入练习时检测上次进度，弹窗选择继续/重来/返回（错题模式不支持恢复）
 - Git 基线：v1.0-baseline（16b115c），**切勿与 c498efec (origin/main) 合并**，会导致本地优化丢失
+- project.config.json 已设置 `ignoreDevUnusedFiles: false` + `ignoreUploadUnusedFiles: false`，禁用微信开发者工具"过滤无依赖文件"功能（uni-app 的 `Math||()` 惰性标记会被误判为死代码）
