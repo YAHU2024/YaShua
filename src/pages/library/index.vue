@@ -118,7 +118,8 @@
                 <textarea
                   class="import-textarea"
                   v-model="textContent"
-                  placeholder="请粘贴题库文本内容...&#10;&#10;支持任意格式的题库文本，AI 将自动识别题目结构。"
+                  :placeholder="TEXT_PLACEHOLDER"
+                  placeholder-style="white-space: pre-line;"
                 />
                 <view v-if="isParsing" class="parsing-status">
                   <text class="parsing-icon">⏳</text>
@@ -134,7 +135,8 @@
                 <textarea
                   class="import-textarea"
                   v-model="formData.markdownContent"
-                  placeholder="请输入 Markdown 格式的题目内容...&#10;&#10;示例：&#10;1. 题目内容？&#10;A. 选项A&#10;B. 选项B&#10;答案：A&#10;解析：解析内容"
+                  :placeholder="MARKDOWN_PLACEHOLDER"
+                  placeholder-style="white-space: pre-line;"
                 />
                 <view v-if="markdownParsedQuestions.length > 0" class="parse-preview">
                   <text class="preview-title">解析结果：{{ markdownParsedQuestions.length }} 道题</text>
@@ -237,7 +239,8 @@
             <textarea
               class="form-textarea large"
               v-model="editingOptionsText"
-              placeholder="A. 选项A&#10;B. 选项B&#10;C. 选项C&#10;D. 选项D"
+              :placeholder="OPTIONS_PLACEHOLDER"
+              placeholder-style="white-space: pre-line;"
             />
           </view>
           <view class="form-item">
@@ -309,6 +312,11 @@ const editingQuestion = reactive<Question>({
 })
 const editingOptionsText = ref('')
 const editingAnswerText = ref('')
+
+// 多行 placeholder 常量：避免在模板中写 &#10; 导致 WXML 解析失败
+const TEXT_PLACEHOLDER = '请粘贴题库文本内容...\n\n支持任意格式的题库文本，AI 将自动识别题目结构。'
+const MARKDOWN_PLACEHOLDER = '请输入 Markdown 格式的题目内容...\n\n示例：\n1. 题目内容？\nA. 选项A\nB. 选项B\n答案：A\n解析：解析内容'
+const OPTIONS_PLACEHOLDER = 'A. 选项A\nB. 选项B\nC. 选项C\nD. 选项D'
 
 const libraries = computed(() => libraryStore.libraries)
 
