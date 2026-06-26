@@ -655,12 +655,7 @@ onUnload(() => {
   gap: $space-md;
   padding: $space-lg;
   padding-bottom: calc($space-lg + env(safe-area-inset-bottom));
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0) 0%,
-    rgba(255, 255, 255, 0.85) 15%,
-    rgba(255, 255, 255, 0.95) 100%
-  );
+  background: var(--color-action-bar-bg);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   box-shadow: 0 -4rpx 20rpx rgba(0, 0, 0, 0.02);

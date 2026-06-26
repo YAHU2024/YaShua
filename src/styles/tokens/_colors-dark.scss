@@ -69,6 +69,14 @@ $color-option-selected-marker-shadow-dark: inset 0 2rpx 4rpx rgba(0, 0, 0, 0.3);
 // ============ 底部控制栏（深色模式）============
 $shadow-btn-confirm-dark: 0 8rpx 24rpx rgba(123, 120, 210, 0.35);
 
+// ============ 底部操作栏渐变背景（深色模式）============
+$color-action-bar-bg-dark: linear-gradient(
+  180deg,
+  rgba(18, 18, 18, 0) 0%,
+  rgba(18, 18, 18, 0.88) 15%,
+  rgba(18, 18, 18, 0.96) 100%
+);
+
 // ============ 毛玻璃效果色（深色模式）============
 $color-glass-bg-dark: rgba(30, 30, 30, 0.75);
 $color-glass-border-dark: rgba(255, 255, 255, 0.08);

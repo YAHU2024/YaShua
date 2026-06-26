@@ -80,6 +80,9 @@
   // 按钮阴影
   --shadow-btn-confirm: #{$shadow-btn-confirm-dark};
 
+  // 底部操作栏渐变背景
+  --color-action-bar-bg: #{$color-action-bar-bg-dark};
+
   // 阴影
   --shadow-sm: #{$shadow-sm-dark};
   --shadow-md: #{$shadow-md-dark};
@@ -166,6 +169,9 @@ page {
 
   // 按钮阴影
   --shadow-btn-confirm: #{$shadow-btn-confirm};
+
+  // 底部操作栏渐变背景
+  --color-action-bar-bg: #{$color-action-bar-bg};
 
   // 阴影
   --shadow-sm: #{$shadow-sm};
