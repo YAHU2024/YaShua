@@ -111,7 +111,7 @@ function handleSelect(option: string) {
 
 // ============ 题目卡片容器 — 微立体悬浮 ============
 .question-card {
-  background: $color-bg-card;
+  background: var(--color-bg-card);
   border-radius: $radius-xl;
   padding: $space-xl;
   margin-bottom: $space-lg;
@@ -134,25 +134,25 @@ function handleSelect(option: string) {
   letter-spacing: 0.5rpx;
   
   &.single {
-    background: $color-tag-single-bg;
-    color: $color-primary;
+    background: var(--color-tag-single-bg);
+    color: var(--color-primary);
   }
   
   &.multiple {
-    background: $color-tag-multiple-bg;
-    color: #389e0d;
+    background: var(--color-tag-multiple-bg);
+    color: var(--color-success);
   }
   
   &.judge {
-    background: $color-tag-judge-bg;
-    color: #d46b08;
+    background: var(--color-tag-judge-bg);
+    color: var(--color-warning);
   }
 }
 
 // ============ 题目正文 ============
 .question-content {
   font-size: $font-size-xl;
-  color: $color-text-primary;
+  color: var(--color-text-primary);
   line-height: 1.6;
   margin-bottom: $space-2xl;
 }
@@ -169,9 +169,9 @@ function handleSelect(option: string) {
   display: flex;
   align-items: center;
   padding: $space-lg;
-  background: $color-option-bg;
+  background: var(--color-option-bg);
   border-radius: $radius-lg;
-  border: 1px solid $color-option-border;
+  border: 1px solid var(--color-option-border);
   transition: all $duration-fast $ease-default;
   box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.02);
   
@@ -182,23 +182,23 @@ function handleSelect(option: string) {
   
   // 已选中态 — 淡紫背景 + 半透明紫边框
   &.selected {
-    background: $color-option-selected-bg;
-    border-color: $color-option-selected-border;
+    background: var(--color-option-selected-bg);
+    border-color: var(--color-option-selected-border);
     box-shadow: none;
   }
   
   // 正确态 — 绿色背景 + 弹性脉冲
   &.correct {
-    background: $color-success-bg;
-    border-color: $color-success-border;
+    background: var(--color-success-bg);
+    border-color: var(--color-success-border);
     box-shadow: none;
     animation: pulseCorrect $duration-slow $ease-bounce;
   }
   
   // 错误态 — 红色背景 + 抖动
   &.wrong {
-    background: $color-error-bg;
-    border-color: $color-error-border;
+    background: var(--color-error-bg);
+    border-color: var(--color-error-border);
     box-shadow: none;
     animation: shake $duration-slow $ease-out;
   }
@@ -209,32 +209,32 @@ function handleSelect(option: string) {
   width: 56rpx;
   height: 56rpx;
   border-radius: $radius-full;
-  background: $color-option-marker-bg;
+  background: var(--color-option-marker-bg);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: $font-size-base;
   font-weight: $font-weight-semibold;
-  color: $color-text-secondary;
+  color: var(--color-text-secondary);
   margin-right: $space-md;
   flex-shrink: 0;
   transition: all $duration-fast $ease-default;
   
   // 选中态 — 渐变深紫 + 白色文字 + 内阴影
   .selected & {
-    background: $gradient-primary;
-    color: $color-text-inverse;
+    background: var(--gradient-primary);
+    color: var(--color-text-inverse);
     box-shadow: $color-option-selected-marker-shadow;
   }
   
   .correct & {
-    background: $gradient-success;
-    color: $color-text-inverse;
+    background: var(--gradient-success);
+    color: var(--color-text-inverse);
   }
   
   .wrong & {
-    background: $color-error;
-    color: $color-text-inverse;
+    background: var(--color-error);
+    color: var(--color-text-inverse);
   }
 }
 
@@ -242,7 +242,7 @@ function handleSelect(option: string) {
 .option-text {
   flex: 1;
   font-size: $font-size-lg;
-  color: $color-text-primary;
+  color: var(--color-text-primary);
 }
 
 // ============ 正确/错误图标 ============
@@ -258,13 +258,13 @@ function handleSelect(option: string) {
   margin-left: $space-md;
   
   &.correct-icon {
-    background: $color-success;
-    color: $color-text-inverse;
+    background: var(--color-success);
+    color: var(--color-text-inverse);
   }
   
   &.wrong-icon {
-    background: $color-error;
-    color: $color-text-inverse;
+    background: var(--color-error);
+    color: var(--color-text-inverse);
   }
 }
 
@@ -272,21 +272,21 @@ function handleSelect(option: string) {
 .analysis-section {
   margin-top: $space-xl;
   padding-top: $space-xl;
-  border-top: 1rpx solid $color-border-base;
+  border-top: 1rpx solid var(--color-border-base);
 }
 
 .analysis-title {
   font-size: $font-size-base;
   font-weight: $font-weight-semibold;
-  color: $color-primary;
+  color: var(--color-primary);
   margin-bottom: $space-sm;
 }
 
 .analysis-content {
   font-size: $font-size-md;
-  color: $color-text-secondary;
+  color: var(--color-text-secondary);
   line-height: $line-height-relaxed;
-  background: $color-bg-input;
+  background: var(--color-bg-input);
   padding: $space-md;
   border-radius: $radius-md;
 }

@@ -1,4 +1,5 @@
 <template>
+  <ThemeWrapper>
   <view class="page">
     <!-- ===== 1. 顶部状态栏 / 品牌 Header ===== -->
     <view class="header">
@@ -135,11 +136,13 @@
       <text class="footer-text">坚持每天刷题，进步看得见 ✨</text>
     </view>
   </view>
+  </ThemeWrapper>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, computed, nextTick } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
+import ThemeWrapper from '@/components/ThemeWrapper.vue'
 import CircularProgress from '@/components/CircularProgress.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import BaseButton from '@/components/BaseButton.vue'
@@ -237,7 +240,7 @@ function goToLibrary() {
 // ==============================
 .page {
   min-height: 100vh;
-  background: $color-bg-page;
+  background: var(--color-bg-page);
   padding-bottom: 120rpx;
 }
 
@@ -246,7 +249,7 @@ function goToLibrary() {
 // ==============================
 .header {
   position: relative;
-  background: $gradient-primary;
+  background: var(--gradient-primary);
   border-radius: 0 0 $radius-3xl $radius-3xl;
   padding: calc(var(--status-bar-height) + 32rpx) $space-2xl $space-3xl $space-2xl;
   overflow: hidden;
@@ -296,7 +299,7 @@ function goToLibrary() {
 .header-brand {
   font-size: $font-size-2xl;
   font-weight: $font-weight-bold;
-  color: $color-text-inverse;
+  color: var(--color-text-inverse);
   letter-spacing: 2rpx;
 }
 
@@ -319,17 +322,17 @@ function goToLibrary() {
 }
 
 .stats-card {
-  background: $color-bg-card;
+  background: var(--color-bg-card);
   border-radius: $radius-xl;
   padding: $card-padding;
-  box-shadow: $shadow-neu-md;
+  box-shadow: var(--shadow-neu-md);
 }
 
 .stats-card-title {
   display: block;
   font-size: $font-size-lg;
   font-weight: $font-weight-semibold;
-  color: $color-text-primary;
+  color: var(--color-text-primary);
   margin-bottom: $space-lg;
   text-align: center;
 }
@@ -340,7 +343,7 @@ function goToLibrary() {
   justify-content: center;
   margin-top: $space-lg;
   padding-top: $space-lg;
-  border-top: 1rpx solid $color-border-base;
+  border-top: 1rpx solid var(--color-border-base);
 }
 
 .stats-summary-item {
@@ -353,27 +356,27 @@ function goToLibrary() {
 .stats-summary-value {
   font-size: 36rpx;
   font-weight: $font-weight-bold;
-  color: $color-primary;
+  color: var(--color-primary);
   
   &.correct {
-    color: $color-success;
+    color: var(--color-success);
   }
   
   &.total {
-    color: $color-text-secondary;
+    color: var(--color-text-secondary);
   }
 }
 
 .stats-summary-label {
   font-size: $font-size-xs;
-  color: $color-text-subtitle;
+  color: var(--color-text-subtitle);
   margin-top: 4rpx;
 }
 
 .stats-summary-divider {
   width: 2rpx;
   height: 40rpx;
-  background: $color-border-base;
+  background: var(--color-border-base);
 }
 
 // ==============================
@@ -387,7 +390,7 @@ function goToLibrary() {
 .section-title {
   font-size: $font-size-xl;
   font-weight: $font-weight-semibold;
-  color: $color-text-primary;
+  color: var(--color-text-primary);
   display: block;
   margin-bottom: $space-lg;
 }
@@ -399,13 +402,13 @@ function goToLibrary() {
 }
 
 .mode-card {
-  background: $color-bg-card;
+  background: var(--color-bg-card);
   border-radius: $radius-lg;
   padding: $space-xl $space-sm $space-lg;
   display: flex;
   flex-direction: column;
   align-items: center;
-  box-shadow: $shadow-neu-sm;
+  box-shadow: var(--shadow-neu-sm);
   transition: transform $duration-fast $ease-default;
   
   &:active {
@@ -443,13 +446,13 @@ function goToLibrary() {
 .mode-name {
   font-size: $font-size-md;
   font-weight: $font-weight-semibold;
-  color: $color-text-primary;
+  color: var(--color-text-primary);
   margin-bottom: $space-xs;
 }
 
 .mode-desc {
   font-size: $font-size-xs;
-  color: $color-text-subtitle;
+  color: var(--color-text-subtitle);
 }
 
 // ==============================
@@ -469,7 +472,7 @@ function goToLibrary() {
 
 .section-more {
   font-size: $font-size-base;
-  color: $color-primary;
+  color: var(--color-primary);
   font-weight: $font-weight-medium;
   
   &:active {
@@ -494,16 +497,16 @@ function goToLibrary() {
 
 .library-card-bg {
   height: 140rpx;
-  background: $color-bg-card;
-  box-shadow: $shadow-neu-sm;
+  background: var(--color-bg-card);
+  box-shadow: var(--shadow-neu-sm);
   pointer-events: none;
 }
 
 .library-card {
   &.is-first {
-    box-shadow: $shadow-neu-md;
+    box-shadow: var(--shadow-neu-md);
     .library-card-inner {
-      background: $color-bg-card;
+      background: var(--color-bg-card);
     }
   }
 }
@@ -513,8 +516,8 @@ function goToLibrary() {
   align-items: center;
   padding: $space-xl $space-lg;
   border-radius: $radius-xl;
-  background: $color-bg-card;
-  box-shadow: $shadow-neu-sm;
+  background: var(--color-bg-card);
+  box-shadow: var(--shadow-neu-sm);
 }
 
 // 题库封面 emoji（与题库管理/错题本页统一风格）
@@ -544,7 +547,7 @@ function goToLibrary() {
   display: block;
   font-size: $font-size-lg;
   font-weight: $font-weight-semibold;
-  color: $color-text-primary;
+  color: var(--color-text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -553,7 +556,7 @@ function goToLibrary() {
 
 .library-count {
   font-size: $font-size-xs;
-  color: $color-text-subtitle;
+  color: var(--color-text-subtitle);
 }
 
 .library-action {
@@ -565,21 +568,21 @@ function goToLibrary() {
 
 .library-action-text {
   font-size: $font-size-base;
-  color: $color-primary;
+  color: var(--color-primary);
   font-weight: $font-weight-medium;
 }
 
 .library-arrow {
   font-size: $font-size-sm;
-  color: $color-primary;
+  color: var(--color-primary);
   margin-left: 4rpx;
 }
 
 .library-empty {
-  background: $color-bg-card;
+  background: var(--color-bg-card);
   border-radius: $radius-xl;
   padding: $card-padding;
-  box-shadow: $shadow-neu-md;
+  box-shadow: var(--shadow-neu-md);
 }
 
 // ==============================
@@ -597,6 +600,6 @@ function goToLibrary() {
 
 .footer-text {
   font-size: $font-size-xs;
-  color: $color-text-tertiary;
+  color: var(--color-text-tertiary);
 }
 </style>

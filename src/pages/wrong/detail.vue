@@ -1,4 +1,5 @@
 <template>
+  <ThemeWrapper>
   <view class="page">
     <NavBar :title="libraryName" />
 
@@ -50,11 +51,13 @@
       <BaseButton variant="primary" size="md" class="bar-btn" @click="startGroupReview">全部重做</BaseButton>
     </view>
   </view>
+  </ThemeWrapper>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
+import ThemeWrapper from '@/components/ThemeWrapper.vue'
 import NavBar from '@/components/NavBar.vue'
 import LoadingState from '@/components/LoadingState.vue'
 import EmptyState from '@/components/EmptyState.vue'
@@ -260,7 +263,7 @@ async function clearGroup() {
 
 .page {
   min-height: 100vh;
-  background: $color-bg-page;
+  background: var(--color-bg-page);
   padding-bottom: 160rpx;
 }
 
@@ -276,17 +279,17 @@ async function clearGroup() {
 }
 
 .wrong-item {
-  background: $color-bg-card;
+  background: var(--color-bg-card);
   border-radius: $radius-xl;
   padding: $space-lg;
-  box-shadow: $shadow-md;
+  box-shadow: var(--shadow-md);
   display: flex;
   align-items: center;
   transition: transform $duration-instant;
   
   &:active {
     transform: scale(0.99);
-    background: $color-bg-hover;
+    background: var(--color-bg-hover);
   }
 }
 
@@ -296,7 +299,7 @@ async function clearGroup() {
 
 .wrong-text {
   font-size: $font-size-md;
-  color: $color-text-primary;
+  color: var(--color-text-primary);
   line-height: $line-height-base;
 }
 
@@ -315,18 +318,18 @@ async function clearGroup() {
 
 .count-icon {
   font-size: $font-size-base;
-  color: $color-error;
+  color: var(--color-error);
   margin-right: $space-xs;
 }
 
 .count-text {
   font-size: $font-size-sm;
-  color: $color-error;
+  color: var(--color-error);
 }
 
 .wrong-time {
   font-size: $font-size-sm;
-  color: $color-text-tertiary;
+  color: var(--color-text-tertiary);
 }
 
 .wrong-delete {
@@ -336,14 +339,14 @@ async function clearGroup() {
   align-items: center;
   justify-content: center;
   font-size: $font-size-2xl;
-  color: $color-text-disabled;
+  color: var(--color-text-disabled);
   border-radius: $radius-full;
   flex-shrink: 0;
   transition: all $duration-fast;
 
   &:active {
-    background: $color-bg-hover;
-    color: $color-error;
+    background: var(--color-bg-hover);
+    color: var(--color-error);
   }
 }
 
@@ -356,8 +359,8 @@ async function clearGroup() {
   justify-content: space-between;
   padding: $space-md $space-xl;
   padding-bottom: calc($space-md + $safe-area-bottom);
-  background: $color-bg-card;
-  box-shadow: $shadow-top;
+  background: var(--color-bg-card);
+  box-shadow: var(--shadow-top);
   z-index: 100;
 }
 

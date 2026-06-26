@@ -1,9 +1,14 @@
 <script setup lang="ts">
 import { onLaunch, onShow, onHide } from '@dcloudio/uni-app'
 import { useUserStore } from '@/stores/user'
+import { useThemeStore } from '@/stores/theme'
 import { markCloudInitialized } from '@/utils/cloud'
 
 onLaunch(async () => {
+  // 初始化主题系统（读取偏好 + 检测系统深色模式 + 监听变化）
+  const themeStore = useThemeStore()
+  themeStore.init()
+
   // 初始化云开发（必须在所有云 API 调用之前执行）
   if (uni.cloud) {
     try {
@@ -31,11 +36,14 @@ onHide(() => {})
 
 <style lang="scss">
 @import '@/uni.scss';
+@import '@/styles/theme/_index.scss';
 @import '@/styles/global.scss';
 
 page {
-  background-color: $color-bg-page;
+  background-color: var(--color-bg-page);
+  color: var(--color-text-primary);
   font-family: $font-family-base;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 view, text {

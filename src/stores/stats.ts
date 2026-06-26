@@ -15,7 +15,11 @@ export const useStatsStore = defineStore('stats', () => {
   const dailyGoal = ref(20)
   try {
     const saved = uni.getStorageSync('daily_goal')
-    if (saved && typeof saved === 'number') dailyGoal.value = saved
+    // Storage 可能返回 string "20"，需显式转换
+    if (saved != null) {
+      const num = Number(saved)
+      if (!isNaN(num)) dailyGoal.value = num
+    }
   } catch { /* 静默降级 */ }
 
   function setDailyGoal(goal: number) {

@@ -43,13 +43,13 @@ defineProps<{
   width: 100%;
   height: 100%;
   border: 6rpx solid transparent;
-  border-top-color: $color-primary;
+  border-top-color: var(--color-primary);
   border-radius: 50%;
   animation: spin 1s $ease-default infinite;
 }
 
 .loading-text {
   font-size: $font-size-base;
-  color: $color-text-tertiary;
+  color: var(--color-text-tertiary);
 }
 </style>

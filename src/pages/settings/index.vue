@@ -1,8 +1,22 @@
 <template>
+  <ThemeWrapper>
   <view class="page">
     <NavBar title="设置" />
     
     <view class="content">
+      <view class="section">
+        <view class="section-title">外观设置</view>
+        <view class="setting-list">
+          <view class="setting-item" @click="setThemeMode">
+            <view class="setting-info">
+              <text class="setting-label">深色模式</text>
+              <text class="setting-value">{{ themePreferenceLabel }}</text>
+            </view>
+            <view class="setting-arrow">›</view>
+          </view>
+        </view>
+      </view>
+
       <view class="section">
         <view class="section-title">关于</view>
         <view class="setting-list">
@@ -75,13 +89,31 @@
       </view>
     </view>
   </view>
+  </ThemeWrapper>
 </template>
 
 <script setup lang="ts">
+import ThemeWrapper from '@/components/ThemeWrapper.vue'
 import NavBar from '@/components/NavBar.vue'
 import { useStatsStore } from '@/stores/stats'
+import { useThemeStore } from '@/stores/theme'
+import { computed } from 'vue'
 
 const statsStore = useStatsStore()
+const themeStore = useThemeStore()
+
+const themePreferenceLabel = computed(() => themeStore.getPreferenceLabel())
+
+function setThemeMode() {
+  uni.showActionSheet({
+    itemList: ['跟随系统', '浅色模式', '深色模式'],
+    success: (res) => {
+      const prefs: Array<'system' | 'light' | 'dark'> = ['system', 'light', 'dark']
+      themeStore.setPreference(prefs[res.tapIndex])
+      uni.showToast({ title: '设置成功', icon: 'success' })
+    }
+  })
+}
 
 function setDailyGoal() {
   uni.showActionSheet({
@@ -148,7 +180,7 @@ function contactUs() {
 
 .page {
   min-height: 100vh;
-  background: $color-bg-page;
+  background: var(--color-bg-page);
 }
 
 .content {
@@ -156,7 +188,7 @@ function contactUs() {
 }
 
 .section {
-  background: $color-bg-card;
+  background: var(--color-bg-card);
   border-radius: $radius-xl;
   margin-bottom: $section-gap;
   overflow: hidden;
@@ -166,8 +198,8 @@ function contactUs() {
   padding: $space-lg $space-xl;
   font-size: $font-size-base;
   font-weight: $font-weight-semibold;
-  color: $color-text-tertiary;
-  background: $color-bg-input;
+  color: var(--color-text-tertiary);
+  background: var(--color-bg-input);
 }
 
 .setting-list {
@@ -178,14 +210,14 @@ function contactUs() {
   display: flex;
   align-items: center;
   padding: $space-lg $space-sm;
-  border-bottom: 1rpx solid $color-border-base;
+  border-bottom: 1rpx solid var(--color-border-base);
 
   &:last-child {
     border-bottom: none;
   }
 
   &:active {
-    background: $color-bg-input;
+    background: var(--color-bg-input);
   }
 }
 
@@ -198,17 +230,17 @@ function contactUs() {
 
 .setting-label {
   font-size: $font-size-lg;
-  color: $color-text-primary;
+  color: var(--color-text-primary);
 }
 
 .setting-value {
   font-size: $font-size-base;
-  color: $color-text-tertiary;
+  color: var(--color-text-tertiary);
 }
 
 .setting-arrow {
   font-size: $font-size-xl;
-  color: $color-text-disabled;
+  color: var(--color-text-disabled);
   margin-left: $space-sm;
 }
 
@@ -220,12 +252,12 @@ function contactUs() {
 .footer-text {
   display: block;
   font-size: $font-size-base;
-  color: $color-text-secondary;
+  color: var(--color-text-secondary);
   margin-bottom: $space-sm;
 }
 
 .footer-copyright {
   font-size: $font-size-sm;
-  color: $color-text-tertiary;
+  color: var(--color-text-tertiary);
 }
 </style>

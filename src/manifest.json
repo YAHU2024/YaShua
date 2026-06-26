@@ -36,7 +36,8 @@
       "urlCheck": false
     },
     "usingComponents": true,
-    "cloud": true
+    "cloud": true,
+    "darkmode": true
   },
   "mp-alipay": {
     "usingComponents": true

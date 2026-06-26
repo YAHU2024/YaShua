@@ -53,10 +53,10 @@ function handleBack() {
   left: 0;
   right: 0;
   z-index: 999;
-  background: $color-glass-nav-bg;
+  background: var(--color-glass-nav-bg);
   backdrop-filter: saturate(180%) blur(20px);
   -webkit-backdrop-filter: saturate(180%) blur(20px);
-  border-bottom: 1rpx solid $color-glass-nav-border;
+  border-bottom: 1rpx solid var(--color-glass-nav-border);
 }
 
 .navbar-status-bar {
@@ -82,7 +82,7 @@ function handleBack() {
 
 .back-icon {
   font-size: $font-size-2xl;
-  color: $color-text-primary;
+  color: var(--color-text-primary);
 }
 
 .navbar-title {
@@ -90,7 +90,7 @@ function handleBack() {
   text-align: center;
   font-size: $font-size-xl;
   font-weight: $font-weight-bold;
-  color: #000000;
+  color: var(--color-text-primary);
 }
 
 .navbar-right {

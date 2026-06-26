@@ -107,24 +107,24 @@ function handleClick() {
 
   // Variants
   &.btn-primary {
-    background: $gradient-primary;
-    color: $color-text-inverse;
+    background: var(--gradient-primary);
+    color: var(--color-text-inverse);
   }
 
   &.btn-secondary {
-    background: $color-bg-input;
-    color: $color-text-secondary;
+    background: var(--color-bg-input);
+    color: var(--color-text-secondary);
   }
 
   &.btn-outline {
     background: transparent;
-    border: 2rpx solid $color-primary;
-    color: $color-primary;
+    border: 2rpx solid var(--color-primary);
+    color: var(--color-primary);
   }
 
   &.btn-ghost {
     background: transparent;
-    color: $color-text-secondary;
+    color: var(--color-text-secondary);
   }
 }
 
@@ -142,6 +142,6 @@ function handleClick() {
 .btn-ghost .btn-spinner,
 .btn-secondary .btn-spinner {
   border-color: rgba(102, 126, 234, 0.2);
-  border-top-color: $color-primary;
+  border-top-color: var(--color-primary);
 }
 </style>

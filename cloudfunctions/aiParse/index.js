@@ -81,7 +81,11 @@ async function callDeepSeekAPI(text) {
         }
       )
 
-      const content = response.data.choices[0].message.content
+      const choices = response.data?.choices
+      if (!Array.isArray(choices) || choices.length === 0) {
+        throw new Error('DeepSeek API 返回无效: choices 为空')
+      }
+      const content = choices[0].message.content
       const result = parseAIResponse(content)
       if (result.length === 0) {
         // 解析为空时记录原始响应便于排查
@@ -91,9 +95,15 @@ async function callDeepSeekAPI(text) {
     } catch (e) {
       console.error(`DeepSeek API 调用失败 (尝试 ${attempt + 1}/${MAX_RETRY + 1})`, e.message)
       lastError = e
-      // 如果是 429 限流或 500 服务器错误，等待后重试
+      // 429 限流或 5xx 服务器错误：等待后重试
       if (e.response && (e.response.status === 429 || e.response.status >= 500)) {
         await new Promise(resolve => setTimeout(resolve, 2000))
+        continue
+      }
+      // 4xx 客户端错误（非429）：不可重试，直接跳出
+      if (e.response && e.response.status >= 400 && e.response.status < 500) {
+        console.warn('不可重试的错误，停止重试:', e.response.status)
+        break
       }
     }
   }
@@ -233,7 +243,7 @@ function normalizeQuestion(q) {
 
   return {
     type,
-    content: String(q.content).trim(),
+    content,
     options,
     answer,
     analysis: q.analysis ? String(q.analysis).trim() : '',
@@ -270,8 +280,160 @@ function splitTextIntoChunks(text) {
   return chunks
 }
 
+/**
+ * 构建单题分析 Prompt（结合用户作答情况）
+ */
+function buildAnalyzePrompt(question, userAnswer, isCorrect) {
+  const typeLabel = { single: '单选题', multiple: '多选题', judge: '判断题' }[question.type] || '单选题'
+  const optionsText = question.options && question.options.length > 0
+    ? question.options.join('\n')
+    : '无选项'
+  const correctAnswer = (question.answer || []).join(', ')
+  const userAnswerStr = (userAnswer || []).join(', ') || '未作答'
+  const resultText = isCorrect ? '回答正确' : '回答错误'
+  const existingAnalysis = question.analysis || ''
+
+  return `你是一位专业的题目解析老师。请对以下题目进行详细解析，帮助学习者理解知识点。
+
+【题目类型】${typeLabel}
+【题目内容】${question.content}
+【题目选项】
+${optionsText}
+【正确答案】${correctAnswer}
+【学习者的答案】${userAnswerStr}
+【答题结果】${resultText}
+${existingAnalysis ? `【已有解析（参考）】${existingAnalysis}` : ''}
+
+请按照以下要求生成解析：
+1. 简要说明题目的知识点和考点
+2. ${isCorrect ? '肯定学习者的正确思路，解释为什么这个答案是对的' : '指出学习者可能存在的知识盲区，解释正确答案的推理过程'}
+3. 如果选项中有常见错误选项，简要说明其迷惑性
+4. 解析尽量精炼，控制在 200-500 字之间
+5. 使用中文输出，语气亲切友好
+6. 只输出纯文本解析内容，不要包含编号、markdown 标题等格式标记`
+}
+
+/**
+ * 调用 DeepSeek API 生成单题分析
+ */
+async function callDeepSeekAnalyze(question, userAnswer, isCorrect) {
+  const apiKey = process.env.DEEPSEEK_API_KEY
+
+  if (!apiKey) {
+    throw new Error('未配置 DEEPSEEK_API_KEY 环境变量，请在微信云开发控制台 → 云函数 aiParse → 环境变量中设置')
+  }
+
+  const prompt = buildAnalyzePrompt(question, userAnswer, isCorrect)
+
+  let lastError = null
+
+  for (let attempt = 0; attempt <= MAX_RETRY; attempt++) {
+    try {
+      const response = await axios.post(
+        DEEPSEEK_API_URL,
+        {
+          model: DEEPSEEK_MODEL,
+          messages: [
+            {
+              role: 'system',
+              content: '你是一位专业且亲切的题目解析老师，擅长用通俗易懂的语言帮助学习者理解知识点。只输出纯文本解析，不要使用任何格式标记。'
+            },
+            {
+              role: 'user',
+              content: prompt
+            }
+          ],
+          temperature: 0.3,
+          max_tokens: 2000
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json'
+          },
+          timeout: 30000
+        }
+      )
+
+      const choices = response.data?.choices
+      if (!Array.isArray(choices) || choices.length === 0) {
+        throw new Error('DeepSeek API 返回无效: choices 为空')
+      }
+      const content = choices[0].message.content
+      return content?.trim() || ''
+    } catch (e) {
+      console.error(`DeepSeek Analyze 调用失败 (尝试 ${attempt + 1}/${MAX_RETRY + 1})`, e.message)
+      lastError = e
+      // 429 限流或 5xx 服务器错误：等待后重试
+      if (e.response && (e.response.status === 429 || e.response.status >= 500)) {
+        await new Promise(resolve => setTimeout(resolve, 2000))
+        continue
+      }
+      // 4xx 客户端错误（非429）：不可重试，直接跳出
+      if (e.response && e.response.status >= 400 && e.response.status < 500) {
+        console.warn('不可重试的错误，停止重试:', e.response.status)
+        break
+      }
+      // 其他错误（网络超时等）：最后一次尝试时抛出
+      if (attempt === MAX_RETRY) throw e
+    }
+  }
+
+  throw lastError || new Error('DeepSeek Analyze 调用失败')
+}
+
+/**
+ * 处理单题 AI 解析请求
+ */
+async function handleAnalyze(event) {
+  const { question, userAnswer, isCorrect } = event
+
+  if (!question || !question.content) {
+    console.warn('handleAnalyze: 缺少题目信息', { hasQuestion: !!question, hasContent: !!question?.content })
+    return { success: false, message: '缺少题目信息' }
+  }
+
+  try {
+    const analysis = await callDeepSeekAnalyze(question, userAnswer, isCorrect)
+
+    if (!analysis) {
+      console.warn('handleAnalyze: AI 返回空解析')
+      return {
+        success: false,
+        message: 'AI 未能生成有效解析，请稍后重试'
+      }
+    }
+
+    console.log('handleAnalyze: 解析成功，长度', analysis.length)
+    return {
+      success: true,
+      message: 'AI 解析完成',
+      data: { analysis }
+    }
+  } catch (e) {
+    console.error('handleAnalyze: 解析失败', e.message)
+    // 区分错误类型，返回友好消息
+    const errMsg = e.message || ''
+    if (errMsg.includes('DEEPSEEK_API_KEY')) {
+      return { success: false, message: 'AI 服务未正确配置，请联系管理员' }
+    }
+    if (errMsg.includes('timeout') || errMsg.includes('ETIMEDOUT')) {
+      return { success: false, message: 'AI 解析超时，请稍后重试' }
+    }
+    return { success: false, message: 'AI 解析服务暂时不可用，请稍后重试' }
+  }
+}
+
 exports.main = async (event, context) => {
   try {
+    const { action } = event
+
+    // 单题分析模式（答题页 AI 解析）
+    if (action === 'analyze') {
+      return await handleAnalyze(event)
+    }
+
+    // 原有批量解析模式
     const { text } = event
 
     if (!text || typeof text !== 'string') {

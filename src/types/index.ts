@@ -57,6 +57,12 @@ export interface QuizProgress {
   startTime: number
 }
 
+export interface AIAnalysisCache {
+  analysis: string
+  generatedAt: number        // Date.now() 时间戳
+  questionHash: string       // question.content + answer 的 hash，用于缓存失效检测
+}
+
 export interface UserState {
   openid: string | null
   isLoggedIn: boolean

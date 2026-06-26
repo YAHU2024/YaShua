@@ -1,0 +1,196 @@
+// ==========================================
+// 雅刷 — 主题 CSS 自定义属性
+// ==========================================
+// 将需要随主题切换的颜色包装为 CSS 自定义属性
+// 浅色默认值映射 SCSS 变量，深色模式通过 @media 和 class 双重机制覆盖
+
+@import '../tokens/_index.scss';
+
+// ============ 深色模式覆盖 mixin（必须先于使用处定义）============
+@mixin dark-mode-overrides {
+  // 品牌色
+  --color-primary: #{$color-primary-dark-mode};
+  --color-primary-dark: #{$color-primary-dark-dark-mode};
+  --color-primary-light: #{$color-primary-light-dark-mode};
+  --color-secondary: #{$color-secondary-dark-mode};
+  --gradient-primary: #{$gradient-primary-dark-mode};
+  --gradient-success: #{$gradient-success-dark-mode};
+
+  // 文字色
+  --color-text-primary: #{$color-text-primary-dark};
+  --color-text-secondary: #{$color-text-secondary-dark};
+  --color-text-tertiary: #{$color-text-tertiary-dark};
+  --color-text-disabled: #{$color-text-disabled-dark};
+  --color-text-inverse: #{$color-text-inverse-dark};
+  --color-text-subtitle: #{$color-text-subtitle-dark};
+
+  // 背景色
+  --color-bg-page: #{$color-bg-page-dark};
+  --color-bg-card: #{$color-bg-card-dark};
+  --color-bg-input: #{$color-bg-input-dark};
+  --color-bg-hover: #{$color-bg-hover-dark};
+  --color-bg-mask: #{$color-bg-mask-dark};
+
+  // Neumorphic 紫色底
+  --color-bg-purple-light: #{$color-bg-purple-light-dark};
+  --color-bg-purple-mid: #{$color-bg-purple-mid-dark};
+
+  // 功能色
+  --color-success: #{$color-success-dark};
+  --color-success-bg: #{$color-success-bg-dark};
+  --color-success-border: #{$color-success-border-dark};
+  --color-error: #{$color-error-dark};
+  --color-error-bg: #{$color-error-bg-dark};
+  --color-error-border: #{$color-error-border-dark};
+  --color-warning: #{$color-warning-dark};
+  --color-warning-bg: #{$color-warning-bg-dark};
+  --color-warning-border: #{$color-warning-border-dark};
+  --color-info: #{$color-info-dark};
+  --color-info-bg: #{$color-info-bg-dark};
+
+  // 选项色
+  --color-option-bg: #{$color-option-bg-dark};
+  --color-option-border: #{$color-option-border-dark};
+  --color-option-marker-bg: #{$color-option-marker-bg-dark};
+  --color-option-selected-bg: #{$color-option-selected-bg-dark};
+  --color-option-selected-border: #{$color-option-selected-border-dark};
+
+  // 操作色
+  --color-action-delete: #{$color-action-delete-dark};
+  --color-action-delete-bg: #{$color-action-delete-bg-dark};
+  --color-icon-blue: #{$color-icon-blue-dark};
+  --color-icon-blue-bg: #{$color-icon-blue-bg-dark};
+
+  // 题型标签色
+  --color-tag-single-bg: #{$color-tag-single-bg-dark};
+  --color-tag-multiple-bg: #{$color-tag-multiple-bg-dark};
+  --color-tag-judge-bg: #{$color-tag-judge-bg-dark};
+
+  // 毛玻璃色
+  --color-glass-bg: #{$color-glass-bg-dark};
+  --color-glass-border: #{$color-glass-border-dark};
+  --color-glass-nav-bg: #{$color-glass-nav-bg-dark};
+  --color-glass-nav-border: #{$color-glass-nav-border-dark};
+
+  // 边框色
+  --color-border-base: #{$color-border-base-dark};
+  --color-border-input: #{$color-border-input-dark};
+  --color-border-light: #{$color-border-light-dark};
+
+  // 按钮阴影
+  --shadow-btn-confirm: #{$shadow-btn-confirm-dark};
+
+  // 阴影
+  --shadow-sm: #{$shadow-sm-dark};
+  --shadow-md: #{$shadow-md-dark};
+  --shadow-lg: #{$shadow-lg-dark};
+  --shadow-xl: #{$shadow-xl-dark};
+  --shadow-top: #{$shadow-top-dark};
+  --shadow-neu-sm: #{$shadow-neu-sm-dark};
+  --shadow-neu-md: #{$shadow-neu-md-dark};
+  --shadow-neu-lg: #{$shadow-neu-lg-dark};
+  --shadow-glass: #{$shadow-glass-dark};
+  --shadow-glass-nav: #{$shadow-glass-nav-dark};
+}
+
+// ============ 浅色默认值 ============
+page {
+  // 品牌色
+  --color-primary: #{$color-primary};
+  --color-primary-dark: #{$color-primary-dark};
+  --color-primary-light: #{$color-primary-light};
+  --color-secondary: #{$color-secondary};
+  --gradient-primary: #{$gradient-primary};
+  --gradient-success: #{$gradient-success};
+
+  // 文字色
+  --color-text-primary: #{$color-text-primary};
+  --color-text-secondary: #{$color-text-secondary};
+  --color-text-tertiary: #{$color-text-tertiary};
+  --color-text-disabled: #{$color-text-disabled};
+  --color-text-inverse: #{$color-text-inverse};
+  --color-text-subtitle: #{$color-text-subtitle};
+
+  // 背景色
+  --color-bg-page: #{$color-bg-page};
+  --color-bg-card: #{$color-bg-card};
+  --color-bg-input: #{$color-bg-input};
+  --color-bg-hover: #{$color-bg-hover};
+  --color-bg-mask: #{$color-bg-mask};
+
+  // Neumorphic 紫色底
+  --color-bg-purple-light: #{$color-bg-purple-light};
+  --color-bg-purple-mid: #{$color-bg-purple-mid};
+
+  // 功能色
+  --color-success: #{$color-success};
+  --color-success-bg: #{$color-success-bg};
+  --color-success-border: #{$color-success-border};
+  --color-error: #{$color-error};
+  --color-error-bg: #{$color-error-bg};
+  --color-error-border: #{$color-error-border};
+  --color-warning: #{$color-warning};
+  --color-warning-bg: #{$color-warning-bg};
+  --color-warning-border: #{$color-warning-border};
+  --color-info: #{$color-info};
+  --color-info-bg: #{$color-info-bg};
+
+  // 选项色
+  --color-option-bg: #{$color-option-bg};
+  --color-option-border: #{$color-option-border};
+  --color-option-marker-bg: #{$color-option-marker-bg};
+  --color-option-selected-bg: #{$color-option-selected-bg};
+  --color-option-selected-border: #{$color-option-selected-border};
+
+  // 操作色
+  --color-action-delete: #{$color-action-delete};
+  --color-action-delete-bg: #{$color-action-delete-bg};
+  --color-icon-blue: #{$color-icon-blue};
+  --color-icon-blue-bg: #{$color-icon-blue-bg};
+
+  // 题型标签色
+  --color-tag-single-bg: #{$color-tag-single-bg};
+  --color-tag-multiple-bg: #{$color-tag-multiple-bg};
+  --color-tag-judge-bg: #{$color-tag-judge-bg};
+
+  // 毛玻璃色
+  --color-glass-bg: #{$color-glass-bg};
+  --color-glass-border: #{$color-glass-border};
+  --color-glass-nav-bg: #{$color-glass-nav-bg};
+  --color-glass-nav-border: #{$color-glass-nav-border};
+
+  // 边框色
+  --color-border-base: #{$color-border-base};
+  --color-border-input: #{$color-border-input};
+  --color-border-light: #{$color-border-light};
+
+  // 按钮阴影
+  --shadow-btn-confirm: #{$shadow-btn-confirm};
+
+  // 阴影
+  --shadow-sm: #{$shadow-sm};
+  --shadow-md: #{$shadow-md};
+  --shadow-lg: #{$shadow-lg};
+  --shadow-xl: #{$shadow-xl};
+  --shadow-top: #{$shadow-top};
+  --shadow-neu-sm: #{$shadow-neu-sm};
+  --shadow-neu-md: #{$shadow-neu-md};
+  --shadow-neu-lg: #{$shadow-neu-lg};
+  --shadow-glass: #{$shadow-glass};
+  --shadow-glass-nav: #{$shadow-glass-nav};
+}
+
+// ============ 深色模式覆盖 — 方式一：跟随系统 ============
+@media (prefers-color-scheme: dark) {
+  page:not(.theme-light) {
+    @include dark-mode-overrides;
+  }
+}
+
+// ============ 深色模式覆盖 — 方式二：手动切换 class ============
+page.theme-dark {
+  @include dark-mode-overrides;
+}
+
+// ============ 手动浅色覆盖（系统深色时强制浅色）============
+// page.theme-light 保持浅色默认值，无需额外声明

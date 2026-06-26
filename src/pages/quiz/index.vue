@@ -1,4 +1,5 @@
 <template>
+  <ThemeWrapper>
   <view class="page">
     <NavBar :title="modeTitle" show-back />
     
@@ -23,6 +24,45 @@
         <text :class="isCorrect ? 'correct-tip' : 'wrong-tip'">
           {{ isCorrect ? '✓ 回答正确！' : '✗ 回答错误' }}
         </text>
+      </view>
+
+      <!-- AI 解析区域 -->
+      <view v-if="showResult" class="ai-analysis-section">
+        <!-- AI 解析按钮 -->
+        <BaseButton
+          v-if="!aiAnalysisText && !aiLoading"
+          variant="outline"
+          size="md"
+          class="ai-analyze-btn"
+          @click="requestAIAnalysis"
+        >✨ AI 解析</BaseButton>
+
+        <!-- AI 加载中动画 -->
+        <view v-if="aiLoading" class="ai-loading">
+          <view class="ai-loading-spinner">
+            <view
+              v-for="i in 3"
+              :key="i"
+              class="spinner-dot"
+              :style="{ animationDelay: `${(i - 1) * 0.15}s` }"
+            />
+          </view>
+          <text class="ai-loading-text">AI 解析中...</text>
+        </view>
+
+        <!-- AI 解析结果卡片 -->
+        <view v-if="aiAnalysisText" class="ai-result-card">
+          <view class="ai-result-header">
+            <text class="ai-result-icon">✨</text>
+            <text class="ai-result-title">AI 解析</text>
+          </view>
+          <view class="ai-result-content">{{ aiAnalysisText }}</view>
+        </view>
+
+        <!-- AI 错误提示 -->
+        <view v-if="aiError" class="ai-error">
+          <text class="ai-error-text">{{ aiError }}</text>
+        </view>
       </view>
 
       <view class="action-bar">
@@ -127,11 +167,13 @@
       </view>
     </view>
   </view>
+  </ThemeWrapper>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { onUnload } from '@dcloudio/uni-app'
+import ThemeWrapper from '@/components/ThemeWrapper.vue'
 import NavBar from '@/components/NavBar.vue'
 import QuestionCard from '@/components/QuestionCard.vue'
 import LoadingState from '@/components/LoadingState.vue'
@@ -162,6 +204,13 @@ const showResumeDialog = ref(false)
 const savedProgressData = ref<QuizProgress | null>(null)
 const libraryChanged = ref(false)
 const targetQuestionId = ref('')
+
+// AI 解析状态
+const aiLoading = ref(false)
+const aiAnalysisText = ref('')
+const aiError = ref('')
+const analyzingQuestionId = ref('')
+const AI_ANALYSIS_TIMEOUT = 30000 // 30 秒超时保护
 
 const mode = ref<'sequence' | 'random' | 'wrong'>('sequence')
 const libraryId = ref('')
@@ -255,10 +304,58 @@ async function confirmAnswer() {
   }
 }
 
+async function requestAIAnalysis() {
+  if (!currentQuestion.value || aiLoading.value) return
+
+  const qid = currentQuestion.value._id || ''
+  analyzingQuestionId.value = qid
+  aiLoading.value = true
+  aiError.value = ''
+
+  try {
+    const { analyzeQuestion } = await import('@/utils/aiParser')
+    // 增加 30s 超时保护，防止 loading 无限旋转
+    const result = await Promise.race([
+      analyzeQuestion(
+        currentQuestion.value,
+        [...currentAnswers.value],
+        isCorrect.value
+      ),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('AI_ANALYSIS_TIMEOUT')), AI_ANALYSIS_TIMEOUT)
+      )
+    ])
+    // 守卫：丢弃切题后的过期响应
+    if (analyzingQuestionId.value !== qid) return
+    aiAnalysisText.value = result
+  } catch (e: any) {
+    if (analyzingQuestionId.value !== qid) return
+    // 详细日志记录（控制台），友好提示（用户界面）
+    console.error('AI 解析失败', {
+      questionId: qid,
+      error: e,
+      message: e?.message || e?.errMsg || 'unknown'
+    })
+    // 适配微信错误对象（errMsg）+ 超时判断
+    const errMsg = e?.errMsg || e?.message || ''
+    if (errMsg.includes('AI_ANALYSIS_TIMEOUT') || errMsg.includes('timeout') || errMsg.includes('超时')) {
+      aiError.value = 'AI 解析超时，请稍后重试'
+    } else if (errMsg.includes('云开发不可用') || errMsg.includes('网络')) {
+      aiError.value = '网络连接异常，请检查网络后重试'
+    } else {
+      aiError.value = 'AI 解析暂时不可用，请稍后重试'
+    }
+  } finally {
+    aiLoading.value = false
+  }
+}
+
 function prevQuestion() {
   if (quizStore.currentIndex > 0) {
     quizStore.prevQuestion()
     showResult.value = false
+    aiAnalysisText.value = ''
+    aiError.value = ''
   }
 }
 
@@ -266,6 +363,8 @@ function nextQuestion() {
   if (quizStore.currentIndex < quizStore.totalQuestions() - 1) {
     quizStore.nextQuestion()
     showResult.value = false
+    aiAnalysisText.value = ''
+    aiError.value = ''
   }
 }
 
@@ -391,7 +490,7 @@ onUnload(() => {
 
 .page {
   min-height: 100vh;
-  background: $color-bg-page;
+  background: var(--color-bg-page);
   display: flex;
   flex-direction: column;
 }
@@ -417,7 +516,7 @@ onUnload(() => {
 
 .progress-fill {
   height: 100%;
-  background: $gradient-primary;
+  background: var(--gradient-primary);
   border-radius: 4rpx;
   transition: width $duration-base $ease-default;
 }
@@ -426,7 +525,7 @@ onUnload(() => {
   display: block;
   text-align: right;
   font-size: $font-size-xs;
-  color: $color-text-tertiary;
+  color: var(--color-text-tertiary);
   margin-top: $space-sm;
 }
 
@@ -444,13 +543,107 @@ onUnload(() => {
 }
 
 .correct-tip {
-  color: $color-success;
+  color: var(--color-success);
   font-weight: $font-weight-semibold;
 }
 
 .wrong-tip {
-  color: $color-error;
+  color: var(--color-error);
   font-weight: $font-weight-semibold;
+}
+
+// ============ AI 解析区域 ============
+.ai-analysis-section {
+  margin-bottom: $space-lg;
+}
+
+.ai-analyze-btn {
+  width: 100%;
+}
+
+// AI 加载动画（内联版 LoadingState）
+.ai-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: $space-lg;
+  background: var(--color-bg-card);
+  border-radius: $radius-lg;
+  box-shadow: var(--shadow-sm);
+}
+
+.ai-loading-spinner {
+  position: relative;
+  width: 56rpx;
+  height: 56rpx;
+  margin-right: $space-md;
+}
+
+.spinner-dot {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: 4rpx solid transparent;
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: spin 1s $ease-default infinite;
+}
+
+.ai-loading-text {
+  font-size: $font-size-base;
+  color: var(--color-text-tertiary);
+}
+
+// AI 解析结果卡片
+.ai-result-card {
+  background: var(--color-bg-card);
+  border-radius: $radius-xl;
+  padding: $space-xl;
+  box-shadow: var(--shadow-md);
+  border-left: 6rpx solid var(--color-primary);
+  animation: modalScaleIn $duration-slow $ease-bounce;
+}
+
+.ai-result-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: $space-md;
+}
+
+.ai-result-icon {
+  font-size: $font-size-xl;
+  margin-right: $space-sm;
+}
+
+.ai-result-title {
+  font-size: $font-size-base;
+  font-weight: $font-weight-semibold;
+  color: var(--color-primary);
+}
+
+.ai-result-content {
+  font-size: $font-size-md;
+  color: var(--color-text-secondary);
+  line-height: $line-height-relaxed;
+  background: var(--color-bg-input);
+  padding: $space-md;
+  border-radius: $radius-md;
+}
+
+// AI 错误提示
+.ai-error {
+  padding: $space-md;
+  background: var(--color-error-bg);
+  border-radius: $radius-md;
+  border: 1rpx solid var(--color-error-border);
+  text-align: center;
+}
+
+.ai-error-text {
+  font-size: $font-size-sm;
+  color: var(--color-error);
 }
 
 .action-bar {
@@ -482,7 +675,7 @@ onUnload(() => {
 
 // 主操作按钮（确认答案/下一题/提交试卷）— 紫色外阴影
 .action-btn:not(.action-btn-prev) {
-  box-shadow: $shadow-btn-confirm;
+  box-shadow: var(--shadow-btn-confirm);
 }
 
 // 恢复进度弹窗
@@ -492,7 +685,7 @@ onUnload(() => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: $color-bg-mask;
+  background: var(--color-bg-mask);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -504,7 +697,7 @@ onUnload(() => {
 .resume-dialog {
   width: 100%;
   max-width: 680rpx;
-  background: $color-bg-card;
+  background: var(--color-bg-card);
   border-radius: $radius-3xl;
   padding: $space-3xl $space-2xl;
   animation: modalScaleIn $duration-slow $ease-bounce;
@@ -514,13 +707,13 @@ onUnload(() => {
   display: block;
   font-size: $font-size-2xl;
   font-weight: $font-weight-semibold;
-  color: $color-text-primary;
+  color: var(--color-text-primary);
   text-align: center;
   margin-bottom: $space-xl;
 }
 
 .resume-dialog-body {
-  background: $color-bg-input;
+  background: var(--color-bg-input);
   border-radius: $radius-lg;
   padding: $space-lg;
   margin-bottom: $space-2xl;
@@ -529,20 +722,20 @@ onUnload(() => {
 .resume-progress-text {
   display: block;
   font-size: $font-size-md;
-  color: $color-text-secondary;
+  color: var(--color-text-secondary);
   text-align: center;
 
   & + & {
     margin-top: $space-sm;
     font-size: $font-size-xs;
-    color: $color-text-tertiary;
+    color: var(--color-text-tertiary);
   }
 }
 
 .resume-warning {
   margin-top: $space-md;
   padding: 20rpx;
-  background: $color-warning-bg;
+  background: var(--color-warning-bg);
   border-radius: $radius-md;
   border-left: 6rpx solid #faad14;
 
@@ -566,7 +759,7 @@ onUnload(() => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: $color-bg-mask;
+  background: var(--color-bg-mask);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -578,7 +771,7 @@ onUnload(() => {
 .score-content {
   width: 100%;
   max-width: 640rpx;
-  background: $color-bg-card;
+  background: var(--color-bg-card);
   border-radius: $radius-3xl;
   padding: 80rpx $space-3xl;
   text-align: center;
@@ -594,7 +787,7 @@ onUnload(() => {
   display: block;
   font-size: $font-size-2xl;
   font-weight: $font-weight-semibold;
-  color: $color-text-primary;
+  color: var(--color-text-primary);
   margin-bottom: $space-2xl;
 }
 
@@ -606,18 +799,18 @@ onUnload(() => {
   display: block;
   font-size: $font-size-display;
   font-weight: $font-weight-bold;
-  color: $color-primary;
+  color: var(--color-primary);
 }
 
 .score-percent {
   display: block;
   font-size: $font-size-lg;
-  color: $color-text-tertiary;
+  color: var(--color-text-tertiary);
   margin-top: $space-sm;
 }
 
 .score-stats {
-  background: $color-bg-input;
+  background: var(--color-bg-input);
   border-radius: $radius-lg;
   padding: $space-lg;
   margin-bottom: $space-2xl;
@@ -631,13 +824,13 @@ onUnload(() => {
   & + & {
     margin-top: $space-md;
     padding-top: $space-md;
-    border-top: 1rpx solid $color-border-base;
+    border-top: 1rpx solid var(--color-border-base);
   }
 }
 
 .stat-label {
   font-size: $font-size-base;
-  color: $color-text-secondary;
+  color: var(--color-text-secondary);
 }
 
 .stat-value {
@@ -645,11 +838,11 @@ onUnload(() => {
   font-weight: $font-weight-semibold;
   
   &.correct {
-    color: $color-success;
+    color: var(--color-success);
   }
   
   &.wrong {
-    color: $color-error;
+    color: var(--color-error);
   }
 }
 </style>

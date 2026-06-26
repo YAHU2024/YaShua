@@ -127,20 +127,14 @@ export const useWrongStore = defineStore('wrong', () => {
         if (question) {
           result.push({ ...wrong, question })
         } else {
-          // 题目文档不存在时使用占位
-          console.warn('[错题] 找不到题目文档', wrong.questionId, '使用占位')
-          result.push({
-            ...wrong,
-            question: {
-              _id: wrong.questionId,
-              libraryId: wrong.libraryId || '',
-              type: 'single',
-              content: '（题目已删除或暂时无法加载）',
-              options: [],
-              answer: [],
-              difficulty: 0
-            } as Question
-          })
+          // 过滤掉题目不存在的记录，不再显示占位
+          console.warn('[错题] 题目', wrong.questionId, '已被删除，从错题列表中移除该记录')
+          // 可选：同时删除云端对应的错题记录（使用当前记录的 _id）
+          try {
+            await db.collection('wrongQuestions').doc(wrong._id || '').remove()
+          } catch (e) {
+            console.error('[错题] 删除无效错题记录失败', e)
+          }
         }
       }
       return result

@@ -42,13 +42,13 @@ defineEmits<{
 .empty-title {
   font-size: $font-size-xl;
   font-weight: $font-weight-semibold;
-  color: $color-text-primary;
+  color: var(--color-text-primary);
   margin-bottom: $space-sm;
 }
 
 .empty-desc {
   font-size: $font-size-base;
-  color: $color-text-tertiary;
+  color: var(--color-text-tertiary);
   margin-bottom: $space-md;
 }
 
@@ -56,8 +56,8 @@ defineEmits<{
   margin-top: $space-md;
   min-width: 200rpx;
   height: $btn-height-md;
-  background: $gradient-primary;
-  color: $color-text-inverse;
+  background: var(--gradient-primary);
+  color: var(--color-text-inverse);
   border-radius: $radius-lg;
   font-size: $font-size-lg;
   font-weight: $font-weight-medium;

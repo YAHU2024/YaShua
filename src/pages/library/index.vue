@@ -1,4 +1,5 @@
 <template>
+  <ThemeWrapper>
   <view class="page">
     <NavBar title="题库管理" show-back />
     
@@ -286,10 +287,12 @@
       </view>
     </view>
   </view>
+  </ThemeWrapper>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch, reactive } from 'vue'
+import ThemeWrapper from '@/components/ThemeWrapper.vue'
 import NavBar from '@/components/NavBar.vue'
 import BaseButton from '@/components/BaseButton.vue'
 import LoadingState from '@/components/LoadingState.vue'
@@ -640,7 +643,7 @@ async function saveLibrary() {
 
 .page {
   min-height: 100vh;
-  background: $color-bg-page;
+  background: var(--color-bg-page);
 }
 
 .content {
@@ -653,10 +656,10 @@ async function saveLibrary() {
   align-items: center;
   justify-content: space-between;
   padding: 32rpx 36rpx;
-  background: $color-glass-bg;
+  background: var(--color-glass-bg);
   border-radius: 24rpx;
-  border: 2rpx solid $color-glass-border;
-  box-shadow: $shadow-glass;
+  border: 2rpx solid var(--color-glass-border);
+  box-shadow: var(--shadow-glass);
   // 微信小程序部分版本不支持 backdrop-filter，用 RGBA 背景做降级
   transition: transform $duration-instant, box-shadow $duration-fast;
 
@@ -675,7 +678,7 @@ async function saveLibrary() {
 .add-card-title {
   font-size: 32rpx;
   font-weight: $font-weight-semibold;
-  background: $gradient-primary;
+  background: var(--gradient-primary);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -684,7 +687,7 @@ async function saveLibrary() {
 
 .add-card-subtitle {
   font-size: 24rpx;
-  color: #8E8E93;
+  color: var(--color-text-subtitle);
   line-height: 1.4;
 }
 
@@ -692,7 +695,7 @@ async function saveLibrary() {
   width: 80rpx;
   height: 80rpx;
   border-radius: 50%;
-  background: $color-icon-blue-bg;
+  background: var(--color-icon-blue-bg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -706,7 +709,7 @@ async function saveLibrary() {
 
 .add-plus-icon {
   font-size: 44rpx;
-  color: $color-icon-blue;
+  color: var(--color-icon-blue);
   font-weight: 300;
   line-height: 1;
 }
@@ -724,10 +727,10 @@ async function saveLibrary() {
   display: flex;
   align-items: flex-start;
   gap: 24rpx;
-  background: $color-bg-card;
+  background: var(--color-bg-card);
   border-radius: 24rpx;
   padding: 28rpx 32rpx;
-  box-shadow: $shadow-neu-md;
+  box-shadow: var(--shadow-neu-md);
   transition: transform $duration-instant, box-shadow $duration-fast;
 
   &:active {
@@ -763,7 +766,7 @@ async function saveLibrary() {
 .library-name {
   font-size: 32rpx;
   font-weight: $font-weight-semibold;
-  color: $color-text-primary;
+  color: var(--color-text-primary);
   margin-bottom: 8rpx;
   display: block;
   overflow: hidden;
@@ -779,23 +782,23 @@ async function saveLibrary() {
 
 .meta-question-count {
   font-size: 24rpx;
-  color: #8E8E93;
+  color: var(--color-text-subtitle);
 }
 
 .meta-dot {
   margin: 0 10rpx;
   font-size: 24rpx;
-  color: #C7C7CC;
+  color: var(--color-text-disabled);
 }
 
 .meta-date {
   font-size: 24rpx;
-  color: #8E8E93;
+  color: var(--color-text-subtitle);
 }
 
 .library-desc {
   font-size: 26rpx;
-  color: $color-text-secondary;
+  color: var(--color-text-secondary);
   line-height: 1.5;
   display: -webkit-box;
   -webkit-box-orient: vertical;
@@ -826,20 +829,20 @@ async function saveLibrary() {
   }
 
   &.edit {
-    border-color: $color-border-input;
+    border-color: var(--color-border-input);
     background: transparent;
 
     &:active {
-      background: $color-bg-hover;
+      background: var(--color-bg-hover);
     }
   }
 
   &.delete {
-    border-color: $color-action-delete;
+    border-color: var(--color-action-delete);
     background: transparent;
 
     &:active {
-      background: $color-action-delete-bg;
+      background: var(--color-action-delete-bg);
     }
   }
 }
@@ -847,10 +850,10 @@ async function saveLibrary() {
 .action-icon-emoji {
   font-size: 28rpx;
   line-height: 1;
-  color: $color-text-secondary;
+  color: var(--color-text-secondary);
 
   .action-icon-wrap.delete & {
-    color: $color-action-delete;
+    color: var(--color-action-delete);
   }
 }
 
@@ -860,7 +863,7 @@ async function saveLibrary() {
   left: 0;
   right: 0;
   bottom: 0;
-  background: $color-bg-mask;
+  background: var(--color-bg-mask);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -872,7 +875,7 @@ async function saveLibrary() {
 .modal-content {
   width: 100%;
   max-width: 600px;
-  background: $color-bg-card;
+  background: var(--color-bg-card);
   border-radius: $radius-2xl;
   overflow: hidden;
   max-height: 85vh;
@@ -890,14 +893,14 @@ async function saveLibrary() {
   justify-content: space-between;
   align-items: center;
   padding: $space-xl;
-  border-bottom: 1rpx solid $color-border-base;
+  border-bottom: 1rpx solid var(--color-border-base);
   flex-shrink: 0;
 }
 
 .modal-title {
   font-size: $font-size-xl;
   font-weight: $font-weight-semibold;
-  color: $color-text-primary;
+  color: var(--color-text-primary);
 }
 
 .modal-close {
@@ -907,7 +910,7 @@ async function saveLibrary() {
   align-items: center;
   justify-content: center;
   font-size: 48rpx;
-  color: $color-text-tertiary;
+  color: var(--color-text-tertiary);
 }
 
 .modal-body {
@@ -924,7 +927,7 @@ async function saveLibrary() {
   display: block;
   font-size: $font-size-base;
   font-weight: $font-weight-medium;
-  color: $color-text-primary;
+  color: var(--color-text-primary);
   margin-bottom: $space-sm;
 }
 
@@ -932,25 +935,25 @@ async function saveLibrary() {
   width: 100%;
   height: $btn-height-lg;
   padding: 0 $space-lg;
-  border: 2rpx solid $color-border-input;
+  border: 2rpx solid var(--color-border-input);
   border-radius: $radius-lg;
   font-size: $font-size-lg;
   transition: border-color $duration-fast;
 
   &:focus {
-    border-color: $color-primary;
-    box-shadow: 0 0 0 4rpx rgba($color-primary, 0.1);
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 4rpx rgba(var(--color-primary), 0.1);
   }
 
   &.form-input-error {
-    border-color: $color-error;
+    border-color: var(--color-error);
   }
 }
 
 .form-error-tip {
   display: block;
   font-size: $font-size-sm;
-  color: $color-error;
+  color: var(--color-error);
   margin-top: $space-xs;
 }
 
@@ -958,12 +961,12 @@ async function saveLibrary() {
   width: 100%;
   height: 200rpx;
   padding: $space-md $space-lg;
-  border: 2rpx solid $color-border-input;
+  border: 2rpx solid var(--color-border-input);
   border-radius: $radius-lg;
   font-size: $font-size-lg;
 
   &:focus {
-    border-color: $color-primary;
+    border-color: var(--color-primary);
   }
 
   &.large {
@@ -972,7 +975,7 @@ async function saveLibrary() {
 }
 
 .import-section {
-  background: $color-bg-input;
+  background: var(--color-bg-input);
   border-radius: $radius-lg;
   padding: $space-lg;
 }
@@ -989,14 +992,14 @@ async function saveLibrary() {
   padding: 20rpx 8rpx;
   border-radius: $radius-md;
   font-size: $font-size-xs;
-  color: $color-text-secondary;
-  background: $color-bg-card;
-  border: 2rpx solid $color-border-light;
+  color: var(--color-text-secondary);
+  background: var(--color-bg-card);
+  border: 2rpx solid var(--color-border-light);
 
   &.active {
-    background: $color-primary;
-    color: $color-text-inverse;
-    border-color: $color-primary;
+    background: var(--color-primary);
+    color: var(--color-text-inverse);
+    border-color: var(--color-primary);
   }
 }
 
@@ -1010,14 +1013,14 @@ async function saveLibrary() {
   align-items: center;
   justify-content: center;
   padding: 60rpx $space-xl;
-  background: $color-bg-card;
-  border: 4rpx dashed #d9d9d9;
+  background: var(--color-bg-card);
+  border: 4rpx dashed var(--color-border-input);
   border-radius: $radius-lg;
   transition: border-color $duration-fast;
 
   &:active {
-    border-color: $color-primary;
-    background: $color-primary-light;
+    border-color: var(--color-primary);
+    background: var(--color-primary-light);
   }
 }
 
@@ -1028,19 +1031,19 @@ async function saveLibrary() {
 
 .upload-text {
   font-size: $font-size-md;
-  color: $color-text-primary;
+  color: var(--color-text-primary);
   font-weight: $font-weight-medium;
   margin-bottom: 12rpx;
 }
 
 .upload-hint {
   font-size: $font-size-sm;
-  color: $color-text-tertiary;
+  color: var(--color-text-tertiary);
   line-height: 1.6;
 }
 
 .file-selected {
-  background: $color-bg-card;
+  background: var(--color-bg-card);
   border-radius: $radius-lg;
   padding: $space-lg;
   display: flex;
@@ -1062,7 +1065,7 @@ async function saveLibrary() {
 
 .file-name {
   font-size: $font-size-base;
-  color: $color-text-primary;
+  color: var(--color-text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1078,8 +1081,8 @@ async function saveLibrary() {
   border-radius: 12rpx;
 
   &.reselect {
-    color: $color-primary;
-    background: $color-primary-light;
+    color: var(--color-primary);
+    background: var(--color-primary-light);
   }
 }
 
@@ -1095,26 +1098,26 @@ async function saveLibrary() {
   width: 100%;
   height: 400rpx;
   padding: $space-md;
-  border: 2rpx solid $color-border-input;
+  border: 2rpx solid var(--color-border-input);
   border-radius: $radius-md;
   font-size: $font-size-base;
-  background: $color-bg-card;
+  background: var(--color-bg-card);
 
   &:focus {
-    border-color: $color-primary;
+    border-color: var(--color-primary);
   }
 }
 
 .parse-preview {
   margin-top: $space-md;
   padding: $space-md;
-  background: $color-info-bg;
+  background: var(--color-info-bg);
   border-radius: $radius-md;
 }
 
 .preview-title {
   font-size: $font-size-xs;
-  color: $color-info;
+  color: var(--color-info);
 }
 
 .parse-result {
@@ -1130,13 +1133,13 @@ async function saveLibrary() {
 
 .result-title {
   font-size: $font-size-base;
-  color: $color-success;
+  color: var(--color-success);
   font-weight: $font-weight-medium;
 }
 
 .result-action {
   font-size: $font-size-xs;
-  color: $color-error;
+  color: var(--color-error);
 }
 
 .question-list {
@@ -1145,11 +1148,11 @@ async function saveLibrary() {
 }
 
 .question-item {
-  background: $color-bg-card;
+  background: var(--color-bg-card);
   border-radius: 20rpx;
   padding: 28rpx;
   margin-bottom: 20rpx;
-  border: 2rpx solid $color-border-base;
+  border: 2rpx solid var(--color-border-base);
 }
 
 .question-header {
@@ -1166,24 +1169,24 @@ async function saveLibrary() {
   font-weight: $font-weight-medium;
 
   &.single {
-    background: $color-info-bg;
-    color: $color-info;
+    background: var(--color-info-bg);
+    color: var(--color-info);
   }
 
   &.multiple {
-    background: $color-success-bg;
-    color: $color-success;
+    background: var(--color-success-bg);
+    color: var(--color-success);
   }
 
   &.judge {
-    background: $color-warning-bg;
-    color: $color-warning;
+    background: var(--color-warning-bg);
+    color: var(--color-warning);
   }
 }
 
 .question-number {
   font-size: $font-size-xs;
-  color: $color-text-tertiary;
+  color: var(--color-text-tertiary);
   flex: 1;
 }
 
@@ -1198,20 +1201,20 @@ async function saveLibrary() {
   border-radius: $radius-xs;
 
   &.edit {
-    color: $color-primary;
-    background: $color-primary-light;
+    color: var(--color-primary);
+    background: var(--color-primary-light);
   }
 
   &.delete {
-    color: $color-error;
-    background: $color-error-bg;
+    color: var(--color-error);
+    background: var(--color-error-bg);
   }
 }
 
 .question-content {
   display: block;
   font-size: $font-size-base;
-  color: $color-text-primary;
+  color: var(--color-text-primary);
   line-height: $line-height-base;
   margin-bottom: $space-sm;
 }
@@ -1223,7 +1226,7 @@ async function saveLibrary() {
 .question-option {
   display: block;
   font-size: $font-size-xs;
-  color: $color-text-secondary;
+  color: var(--color-text-secondary);
   line-height: 1.8;
 }
 
@@ -1235,23 +1238,23 @@ async function saveLibrary() {
 
 .answer-label {
   font-size: $font-size-xs;
-  color: $color-text-tertiary;
+  color: var(--color-text-tertiary);
 }
 
 .answer-value {
   font-size: $font-size-xs;
-  color: $color-success;
+  color: var(--color-success);
   font-weight: $font-weight-medium;
 }
 
 .question-analysis {
   display: block;
   font-size: $font-size-sm;
-  color: $color-text-tertiary;
+  color: var(--color-text-tertiary);
   line-height: $line-height-base;
   margin-top: 12rpx;
   padding-top: 12rpx;
-  border-top: 1rpx solid $color-border-base;
+  border-top: 1rpx solid var(--color-border-base);
 }
 
 .result-actions {
@@ -1271,21 +1274,21 @@ async function saveLibrary() {
   padding: 20rpx;
   border-radius: $radius-md;
   font-size: $font-size-base;
-  color: $color-text-secondary;
-  background: $color-bg-hover;
-  border: 2rpx solid $color-border-light;
+  color: var(--color-text-secondary);
+  background: var(--color-bg-hover);
+  border: 2rpx solid var(--color-border-light);
 
   &.active {
-    background: $color-primary;
-    color: $color-text-inverse;
-    border-color: $color-primary;
+    background: var(--color-primary);
+    color: var(--color-text-inverse);
+    border-color: var(--color-primary);
   }
 }
 
 .modal-footer {
   display: flex;
   padding: $space-lg $space-xl;
-  border-top: 1rpx solid $color-border-base;
+  border-top: 1rpx solid var(--color-border-base);
   gap: $space-md;
   flex-shrink: 0;
 }

@@ -77,8 +77,14 @@ export const useQuizStore = defineStore('quiz', () => {
   }
 
   function saveProgress() {
+    // Guard: no questions means nothing to save
+    if (!questions.value || questions.value.length === 0) {
+      console.warn('[quiz] Skipping saveProgress: no questions loaded')
+      return
+    }
+
     const progress: QuizProgress = {
-      libraryId: questions.value[0]?.libraryId || '',
+      libraryId: questions.value[0].libraryId,
       mode: mode.value,
       questions: questions.value,
       currentIndex: currentIndex.value,

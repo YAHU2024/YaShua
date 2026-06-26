@@ -19,7 +19,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, nextTick, getCurrentInstance } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick, getCurrentInstance } from 'vue'
+import { useTheme } from '@/composables/useTheme'
 
 const props = defineProps<{
   value: number       // 已完成数量（中心大数字）
@@ -31,6 +32,7 @@ const props = defineProps<{
 
 const instance = getCurrentInstance()
 const displayValue = ref(0)
+const { isDark, themeColors } = useTheme()
 
 // 唯一 Canvas ID（避免多实例冲突）
 const canvasId = `cp-canvas-${Math.random().toString(36).slice(2, 9)}`
@@ -144,7 +146,7 @@ async function drawRing(targetProgress?: number) {
     drawArc(
       cx, cy, r, lineWidth,
       0, 360,
-      'rgba(74, 71, 163, 0.08)',  // 浅紫色底环
+      themeColors.value.ringBg,  // 底环背景色（跟随主题）
       'round'
     )
 
@@ -170,13 +172,13 @@ async function drawRing(targetProgress?: number) {
       
       ctx.beginPath()
       ctx.arc(dotX, dotY, 8, 0, Math.PI * 2)
-      ctx.fillStyle = '#7048B6'
+      ctx.fillStyle = themeColors.value.glowDot
       ctx.fill()
       
       // 外发光
       ctx.beginPath()
       ctx.arc(dotX, dotY, 14, 0, Math.PI * 2)
-      ctx.fillStyle = 'rgba(112, 72, 182, 0.3)'
+      ctx.fillStyle = themeColors.value.glowOuter
       ctx.fill()
     }
 
@@ -211,9 +213,9 @@ function drawArc(
 
 function getGradient(x0: number, y0: number, x1: number, y1: number): CanvasGradient {
   const grad = ctx.createLinearGradient(x0, y0, x1, y1)
-  grad.addColorStop(0, '#4A47A3')
-  grad.addColorStop(0.5, '#5C4FB0')
-  grad.addColorStop(1, '#7048B6')
+  grad.addColorStop(0, themeColors.value.gradientStart)
+  grad.addColorStop(0.5, themeColors.value.gradientMid)
+  grad.addColorStop(1, themeColors.value.gradientEnd)
   return grad
 }
 
@@ -254,11 +256,26 @@ watch(() => [props.value, props.total], () => {
   animateValue(props.value)
 })
 
+// 主题切换时重绘 Canvas
+watch(isDark, () => {
+  if (ctx) {
+    nextTick(() => drawRing(percentage.value))
+  }
+})
+
 onMounted(() => {
   nextTick(() => {
     initCanvas()
     animateValue(props.value)
   })
+})
+
+onUnmounted(() => {
+  // 清理所有活跃的动画帧，防止内存泄漏
+  caf(animFrameId)
+  animFrameId = null
+  caf(valueAnimFrameId)
+  valueAnimFrameId = null
 })
 
 // 暴露重绘方法，供父组件在页面 onShow 时调用
@@ -303,13 +320,13 @@ defineExpose({
 .cp-value {
   font-size: 72rpx;
   font-weight: 700;
-  color: #4A47A3;
+  color: var(--color-primary);
   line-height: 1;
 }
 
 .cp-label {
   font-size: 24rpx;
-  color: #8E8E93;
+  color: var(--color-text-subtitle);
   margin-top: 8rpx;
 }
 
@@ -323,13 +340,13 @@ defineExpose({
 .cp-percent {
   font-size: 28rpx;
   font-weight: 600;
-  color: #4A47A3;
+  color: var(--color-primary);
   line-height: 1;
 }
 
 .cp-bottom-label {
   font-size: 22rpx;
-  color: #8E8E93;
+  color: var(--color-text-subtitle);
   margin-top: 4rpx;
 }
 </style>

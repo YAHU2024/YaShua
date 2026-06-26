@@ -1,4 +1,6 @@
 {
+  "darkmode": true,
+  "themeLocation": "theme.json",
   "pages": [
     {
       "path": "pages/index/index",
@@ -32,7 +34,7 @@
       "path": "pages/wrong/detail",
       "style": {
         "navigationBarTitleText": "错题详情",
-        "navigationBarBackgroundColor": "#ffffff"
+        "navigationBarBackgroundColor": "@navBgColor"
       }
     },
     {
@@ -44,16 +46,16 @@
     }
   ],
   "globalStyle": {
-    "navigationBarTextStyle": "white",
+    "navigationBarTextStyle": "@navTextColor",
     "navigationBarTitleText": "雅刷",
-    "navigationBarBackgroundColor": "#4A47A3",
-    "backgroundColor": "#F5F5F7"
+    "navigationBarBackgroundColor": "@navBgColor",
+    "backgroundColor": "@bgColor"
   },
   "tabBar": {
-    "color": "#999999",
-    "selectedColor": "#4A47A3",
+    "color": "@tabBarColor",
+    "selectedColor": "@tabBarSelectedColor",
     "borderStyle": "black",
-    "backgroundColor": "#ffffff",
+    "backgroundColor": "@tabBarBgColor",
     "list": [
       {
         "pagePath": "pages/index/index",

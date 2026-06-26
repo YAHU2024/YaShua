@@ -1,0 +1,26 @@
+// ==========================================
+// 雅刷 — 深色模式阴影层级
+// ==========================================
+
+// 深色模式下阴影更强（深色背景上需要更高对比度）
+$shadow-sm-dark: 0 2rpx 8rpx rgba(0, 0, 0, 0.3);
+$shadow-md-dark: 0 4rpx 24rpx rgba(0, 0, 0, 0.4);
+$shadow-lg-dark: 0 4rpx 24rpx rgba(0, 0, 0, 0.5);
+$shadow-xl-dark: 0 8rpx 40rpx rgba(0, 0, 0, 0.6);
+$shadow-top-dark: 0 -4rpx 24rpx rgba(0, 0, 0, 0.4);
+
+// ============ Neumorphic 微立体阴影（深色模式）============
+// 暗面加深，高光减弱（深色表面上高光效果很弱）
+$shadow-neu-sm-dark: 0 4rpx 16rpx rgba(0, 0, 0, 0.35),
+                     0 -2rpx 8rpx rgba(255, 255, 255, 0.03);
+$shadow-neu-md-dark: 0 8rpx 32rpx rgba(0, 0, 0, 0.4),
+                     0 -2rpx 8rpx rgba(255, 255, 255, 0.03);
+$shadow-neu-lg-dark: 0 12rpx 48rpx rgba(0, 0, 0, 0.5),
+                     0 -2rpx 8rpx rgba(255, 255, 255, 0.03);
+$shadow-neu-highlight-dark: 0 -2rpx 8rpx rgba(255, 255, 255, 0.05);
+
+// ============ 毛玻璃卡片阴影（深色模式）============
+$shadow-glass-dark: 0 4rpx 20rpx rgba(0, 0, 0, 0.4),
+                    0 -2rpx 8rpx rgba(255, 255, 255, 0.03);
+$shadow-glass-nav-dark: 0 1rpx 0 rgba(255, 255, 255, 0.04),
+                        0 4rpx 16rpx rgba(0, 0, 0, 0.3);

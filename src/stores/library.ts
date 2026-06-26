@@ -306,10 +306,14 @@ export const useLibraryStore = defineStore('library', () => {
           }
         }
 
-        // 同步到本地缓存
-        const questionsMap = getLocalQuestions()
-        questionsMap[libraryId] = allQuestions
-        saveLocalQuestions(questionsMap)
+        // 同步到本地缓存（仅当有新数据时才覆盖，保留已有本地缓存作为降级方案）
+        if (allQuestions.length > 0) {
+          const questionsMap = getLocalQuestions()
+          questionsMap[libraryId] = allQuestions
+          saveLocalQuestions(questionsMap)
+        } else {
+          console.warn(`[library] 题库 ${libraryId} 云端无题目，保留本地缓存`)
+        }
         return allQuestions
       } catch (e) {
         console.error('云开发获取题目失败，使用本地数据', e)

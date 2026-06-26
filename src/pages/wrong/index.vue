@@ -1,4 +1,5 @@
 <template>
+  <ThemeWrapper>
   <view class="page">
     <NavBar title="错题本" />
 
@@ -40,11 +41,13 @@
       />
     </view>
   </view>
+  </ThemeWrapper>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
+import ThemeWrapper from '@/components/ThemeWrapper.vue'
 import NavBar from '@/components/NavBar.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import { useWrongStore } from '@/stores/wrong'
@@ -130,7 +133,7 @@ function goDetail(group: WrongGroup) {
 
 .page {
   min-height: 100vh;
-  background: $color-bg-page;
+  background: var(--color-bg-page);
 }
 
 .content {
@@ -149,10 +152,10 @@ function goDetail(group: WrongGroup) {
   display: flex;
   align-items: center;
   gap: 24rpx;
-  background: $color-bg-card;
+  background: var(--color-bg-card);
   border-radius: 24rpx;              // 与题库管理页一致（= $radius-lg）
   padding: 28rpx 32rpx;
-  box-shadow: $shadow-neu-md;        // ✅ Neumorphic 微立体阴影
+  box-shadow: var(--shadow-neu-md);        // ✅ Neumorphic 微立体阴影
   transition: transform $duration-instant, box-shadow $duration-fast;
 
   &:active {
@@ -191,7 +194,7 @@ function goDetail(group: WrongGroup) {
 .card-name {
   font-size: 32rpx;                  // = $font-size-lg
   font-weight: $font-weight-semibold;
-  color: $color-text-primary;        // 黑色加粗主标题
+  color: var(--color-text-primary);        // 黑色加粗主标题
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -199,7 +202,7 @@ function goDetail(group: WrongGroup) {
 
 .card-sub {
   font-size: $font-size-xs;          // 22rpx 红色小字
-  color: $color-error;               // #ff4d4f
+  color: var(--color-error);               // #ff4d4f
   line-height: 1;
 }
 
@@ -232,19 +235,19 @@ function goDetail(group: WrongGroup) {
 }
 
 .pill-wrong {
-  background: $color-error-bg;       // #fff2f0 浅红
-  color: $color-error;               // #ff4d4f
+  background: var(--color-error-bg);       // #fff2f0 浅红
+  color: var(--color-error);               // #ff4d4f
 }
 
 .pill-total {
   background: #F0F0F3;               // 浅灰（与 cover 渐变起点同色系）
-  color: $color-text-subtitle;       // #8E8E93
+  color: var(--color-text-subtitle);       // #8E8E93
 }
 
 // --- 箭头 ---
 .card-arrow {
   font-size: 48rpx;
-  color: $color-text-disabled;       // #cccccc 灰色箭头
+  color: var(--color-text-disabled);       // #cccccc 灰色箭头
   font-weight: 300;
   line-height: 1;
 }
