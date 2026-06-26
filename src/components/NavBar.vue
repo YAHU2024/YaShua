@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <view class="navbar">
     <view class="navbar-status-bar" :style="{ height: statusBarHeight + 'px' }"></view>
     <view class="navbar-content">
@@ -89,8 +89,8 @@ function handleBack() {
   flex: 1;
   text-align: center;
   font-size: $font-size-xl;
-  font-weight: $font-weight-semibold;
-  color: $color-text-primary;
+  font-weight: $font-weight-bold;
+  color: #000000;
 }
 
 .navbar-right {

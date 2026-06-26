@@ -86,7 +86,7 @@ onLoad((options) => {
   if (options?.libraryName) {
     libraryName.value = decodeURIComponent(options.libraryName)
   }
-  uni.setNavigationBarTitle({ title: libraryName.value || '错题详情' })
+
 })
 
 onMounted(async () => {
@@ -353,7 +353,7 @@ async function clearGroup() {
   left: 0;
   right: 0;
   display: flex;
-  gap: $space-md;
+  justify-content: space-between;
   padding: $space-md $space-xl;
   padding-bottom: calc($space-md + $safe-area-bottom);
   background: $color-bg-card;
@@ -362,6 +362,6 @@ async function clearGroup() {
 }
 
 .bar-btn {
-  flex: 1;
+  width: 280rpx;
 }
 </style>
