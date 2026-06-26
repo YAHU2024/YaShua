@@ -1,7 +1,7 @@
 {
   "name": "aiParse",
   "version": "1.0.0",
-  "description": "AI智能解析题库云函数（DeepSeek）",
+  "description": "AI智能解析题库云函数（Agnes + DeepSeek 双模型）",
   "main": "index.js",
   "dependencies": {
     "wx-server-sdk": "~2.6.3",

@@ -5,11 +5,27 @@ cloud.init({
   env: cloud.DYNAMIC_CURRENT_ENV
 })
 
-// DeepSeek API 配置（从云函数环境变量 DEEPSEEK_API_KEY 读取）
-const DEEPSEEK_API_URL = 'https://api.deepseek.com/v1/chat/completions'
-const DEEPSEEK_MODEL = 'deepseek-v4-flash'
+// 多模型 Provider 配置（agnes 为主，deepseek 降级备选）
+const PROVIDERS = {
+  agnes: {
+    name: 'Agnes',
+    apiUrl: 'https://apihub.agnes-ai.com/v1/chat/completions',
+    model: 'agnes-2.0-flash',
+    apiKeyEnv: 'AGNES_API_KEY'
+  },
+  deepseek: {
+    name: 'DeepSeek',
+    apiUrl: 'https://api.deepseek.com/v1/chat/completions',
+    model: 'deepseek-v4-flash',
+    apiKeyEnv: 'DEEPSEEK_API_KEY'
+  }
+}
+
+const PRIMARY_PROVIDER = PROVIDERS.agnes
+const FALLBACK_PROVIDER = PROVIDERS.deepseek
+
 const MAX_CHUNK_CHARS = 6000 // 每段最大字符数（小段并行更快，降低单次超时风险）
-const MAX_RETRY = 1 // API 调用失败重试次数
+const MAX_RETRY = 1 // 单个 Provider API 调用失败重试次数
 
 /**
  * 构建解析 Prompt
@@ -40,15 +56,90 @@ ${text}
 }
 
 /**
- * 调用 DeepSeek API 解析题库文本
+ * 通用 LLM API 调用（含重试）
+ * @param {object} provider - Provider 配置对象
+ * @param {Array} messages - OpenAI 格式消息数组
+ * @param {object} options - { temperature, max_tokens, timeout }
+ * @returns {string} 模型返回的 content 文本
  */
-async function callDeepSeekAPI(text) {
-  const apiKey = process.env.DEEPSEEK_API_KEY
+async function callLLM(provider, messages, { temperature, max_tokens, timeout }) {
+  const apiKey = process.env[provider.apiKeyEnv]
 
   if (!apiKey) {
-    throw new Error('未配置 DEEPSEEK_API_KEY 环境变量，请在微信云开发控制台 → 云函数 aiParse → 环境变量中设置')
+    throw new Error(`未配置 ${provider.apiKeyEnv} 环境变量，请在微信云开发控制台 → 云函数 aiParse → 环境变量中设置`)
   }
 
+  let lastError = null
+
+  for (let attempt = 0; attempt <= MAX_RETRY; attempt++) {
+    try {
+      const response = await axios.post(
+        provider.apiUrl,
+        {
+          model: provider.model,
+          messages,
+          temperature,
+          max_tokens
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json'
+          },
+          timeout
+        }
+      )
+
+      const choices = response.data?.choices
+      if (!Array.isArray(choices) || choices.length === 0) {
+        throw new Error(`${provider.name} API 返回无效: choices 为空`)
+      }
+      return choices[0].message.content
+    } catch (e) {
+      console.error(`[${provider.name}] API 调用失败 (尝试 ${attempt + 1}/${MAX_RETRY + 1})`, e.message)
+      lastError = e
+      // 429 限流或 5xx 服务器错误：等待后重试
+      if (e.response && (e.response.status === 429 || e.response.status >= 500)) {
+        await new Promise(resolve => setTimeout(resolve, 2000))
+        continue
+      }
+      // 4xx 客户端错误（非429）：不可重试，直接跳出
+      if (e.response && e.response.status >= 400 && e.response.status < 500) {
+        console.warn(`[${provider.name}] 不可重试的错误，停止重试:`, e.response.status)
+        break
+      }
+    }
+  }
+
+  throw lastError || new Error(`${provider.name} API 调用失败`)
+}
+
+/**
+ * 带降级的 LLM 调用：先尝试主模型，失败后自动降级到备选模型
+ */
+async function callLLMWithFallback(messages, options) {
+  try {
+    const content = await callLLM(PRIMARY_PROVIDER, messages, options)
+    console.log(`[${PRIMARY_PROVIDER.name}] 调用成功`)
+    return { content, provider: PRIMARY_PROVIDER }
+  } catch (primaryError) {
+    console.warn(`[${PRIMARY_PROVIDER.name}] 全部重试失败，降级到 [${FALLBACK_PROVIDER.name}]`)
+    try {
+      const content = await callLLM(FALLBACK_PROVIDER, messages, options)
+      console.log(`[${FALLBACK_PROVIDER.name}] 降级调用成功`)
+      return { content, provider: FALLBACK_PROVIDER }
+    } catch (fallbackError) {
+      // 两个 provider 都失败，抛出原始错误（主模型的）
+      console.error(`[${FALLBACK_PROVIDER.name}] 降级也失败:`, fallbackError.message)
+      throw primaryError
+    }
+  }
+}
+
+/**
+ * 调用 LLM API 解析题库文本（agnes 优先，deepseek 降级）
+ */
+async function callDeepSeekAPI(text) {
   const messages = [
     {
       role: 'system',
@@ -60,55 +151,17 @@ async function callDeepSeekAPI(text) {
     }
   ]
 
-  let lastError = null
+  const { content, provider } = await callLLMWithFallback(messages, {
+    temperature: 0.1,
+    max_tokens: 16000,
+    timeout: 55000
+  })
 
-  for (let attempt = 0; attempt <= MAX_RETRY; attempt++) {
-    try {
-      const response = await axios.post(
-        DEEPSEEK_API_URL,
-        {
-          model: DEEPSEEK_MODEL,
-          messages,
-          temperature: 0.1,
-          max_tokens: 16000
-        },
-        {
-          headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'Content-Type': 'application/json'
-          },
-          timeout: 55000 // 55 秒超时（云函数 60s，留 5s 余量）
-        }
-      )
-
-      const choices = response.data?.choices
-      if (!Array.isArray(choices) || choices.length === 0) {
-        throw new Error('DeepSeek API 返回无效: choices 为空')
-      }
-      const content = choices[0].message.content
-      const result = parseAIResponse(content)
-      if (result.length === 0) {
-        // 解析为空时记录原始响应便于排查
-        console.warn('AI 返回内容无法解析出题目，原始响应前 500 字符:', content.substring(0, 500))
-      }
-      return result
-    } catch (e) {
-      console.error(`DeepSeek API 调用失败 (尝试 ${attempt + 1}/${MAX_RETRY + 1})`, e.message)
-      lastError = e
-      // 429 限流或 5xx 服务器错误：等待后重试
-      if (e.response && (e.response.status === 429 || e.response.status >= 500)) {
-        await new Promise(resolve => setTimeout(resolve, 2000))
-        continue
-      }
-      // 4xx 客户端错误（非429）：不可重试，直接跳出
-      if (e.response && e.response.status >= 400 && e.response.status < 500) {
-        console.warn('不可重试的错误，停止重试:', e.response.status)
-        break
-      }
-    }
+  const result = parseAIResponse(content)
+  if (result.length === 0) {
+    console.warn(`[${provider.name}] AI 返回内容无法解析出题目，原始响应前 500 字符:`, content.substring(0, 500))
   }
-
-  throw lastError || new Error('DeepSeek API 调用失败')
+  return result
 }
 
 /**
@@ -315,72 +368,29 @@ ${existingAnalysis ? `【已有解析（参考）】${existingAnalysis}` : ''}
 }
 
 /**
- * 调用 DeepSeek API 生成单题分析
+ * 调用 LLM API 生成单题分析（agnes 优先，deepseek 降级）
  */
 async function callDeepSeekAnalyze(question, userAnswer, isCorrect) {
-  const apiKey = process.env.DEEPSEEK_API_KEY
-
-  if (!apiKey) {
-    throw new Error('未配置 DEEPSEEK_API_KEY 环境变量，请在微信云开发控制台 → 云函数 aiParse → 环境变量中设置')
-  }
-
   const prompt = buildAnalyzePrompt(question, userAnswer, isCorrect)
 
-  let lastError = null
-
-  for (let attempt = 0; attempt <= MAX_RETRY; attempt++) {
-    try {
-      const response = await axios.post(
-        DEEPSEEK_API_URL,
-        {
-          model: DEEPSEEK_MODEL,
-          messages: [
-            {
-              role: 'system',
-              content: '你是一位专业且亲切的题目解析老师，擅长用通俗易懂的语言帮助学习者理解知识点。只输出纯文本解析，不要使用任何格式标记。不同段落之间请用换行符分隔，保证阅读体验。'
-            },
-            {
-              role: 'user',
-              content: prompt
-            }
-          ],
-          temperature: 0.3,
-          max_tokens: 2000
-        },
-        {
-          headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'Content-Type': 'application/json'
-          },
-          timeout: 20000
-        }
-      )
-
-      const choices = response.data?.choices
-      if (!Array.isArray(choices) || choices.length === 0) {
-        throw new Error('DeepSeek API 返回无效: choices 为空')
-      }
-      const content = choices[0].message.content
-      return content?.trim() || ''
-    } catch (e) {
-      console.error(`DeepSeek Analyze 调用失败 (尝试 ${attempt + 1}/${MAX_RETRY + 1})`, e.message)
-      lastError = e
-      // 429 限流或 5xx 服务器错误：等待后重试
-      if (e.response && (e.response.status === 429 || e.response.status >= 500)) {
-        await new Promise(resolve => setTimeout(resolve, 2000))
-        continue
-      }
-      // 4xx 客户端错误（非429）：不可重试，直接跳出
-      if (e.response && e.response.status >= 400 && e.response.status < 500) {
-        console.warn('不可重试的错误，停止重试:', e.response.status)
-        break
-      }
-      // 其他错误（网络超时等）：最后一次尝试时抛出
-      if (attempt === MAX_RETRY) throw e
+  const messages = [
+    {
+      role: 'system',
+      content: '你是一位专业且亲切的题目解析老师，擅长用通俗易懂的语言帮助学习者理解知识点。只输出纯文本解析，不要使用任何格式标记。不同段落之间请用换行符分隔，保证阅读体验。'
+    },
+    {
+      role: 'user',
+      content: prompt
     }
-  }
+  ]
 
-  throw lastError || new Error('DeepSeek Analyze 调用失败')
+  const { content } = await callLLMWithFallback(messages, {
+    temperature: 0.3,
+    max_tokens: 2000,
+    timeout: 20000
+  })
+
+  return content?.trim() || ''
 }
 
 /**
@@ -415,7 +425,7 @@ async function handleAnalyze(event) {
     console.error('handleAnalyze: 解析失败', e.message)
     // 区分错误类型，返回友好消息
     const errMsg = e.message || ''
-    if (errMsg.includes('DEEPSEEK_API_KEY')) {
+    if (errMsg.includes('未配置')) {
       return { success: false, message: 'AI 服务未正确配置，请联系管理员' }
     }
     if (errMsg.includes('timeout') || errMsg.includes('ETIMEDOUT')) {
