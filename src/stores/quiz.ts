@@ -282,7 +282,7 @@ export const useQuizStore = defineStore('quiz', () => {
 
     localSet('local_quiz_records', localRecords)
     localSet('local_wrong_questions', localWrong)
-    // 不再写入 local_user_stats：已由 recordSingleAnswer → saveResultsLocalForSingle 逐题实时更新
+    // 不再写入 local_user_stats：已由 recordSingleAnswer → statsStore.saveLocalAndSyncCloud 逐题实时更新
   }
 
   function localGet(key: string): any[] {
@@ -298,14 +298,6 @@ export const useQuizStore = defineStore('quiz', () => {
     } catch (e) {
       console.error('本地存储失败', key, e)
     }
-  }
-
-  /**
-   * 判断日期是否为今日
-   */
-  function isSameDay(dateStr?: string | Date): boolean {
-    if (!dateStr) return false
-    return new Date(dateStr).toDateString() === new Date().toDateString()
   }
 
   /**
@@ -327,37 +319,13 @@ export const useQuizStore = defineStore('quiz', () => {
     if (isCorrect) statsStore.correctCount += 1
     _lastSyncDate = today
     console.log(`[recordSingleAnswer] ${isCorrect ? '正确' : '错误'}, todayQuestions=${statsStore.todayQuestions}, todayCorrect=${statsStore.todayCorrect}`)
-    // 同步写本地 storage 做持久化
+    // 写本地 storage + 防抖异步同步云数据库
     try {
       const openid = useUserStore().openid
       if (openid) {
-        saveResultsLocalForSingle(openid, isCorrect)
+        statsStore.saveLocalAndSyncCloud(openid, isCorrect)
       }
     } catch { /* 静默 */ }
-  }
-
-  /** 单题统计写入本地 storage */
-  function saveResultsLocalForSingle(openid: string, isCorrect: boolean) {
-    const localStats = localGet('local_user_stats')
-    const existing = localStats.find((s: any) => s.openid === openid)
-    if (existing) {
-      const isNewDay = !isSameDay(existing.updatedAt)
-      existing.totalQuestions = (existing.totalQuestions || 0) + 1
-      if (isCorrect) existing.correctCount = (existing.correctCount || 0) + 1
-      existing.todayQuestions = isNewDay ? 1 : (existing.todayQuestions || 0) + 1
-      existing.todayCorrect = isNewDay ? (isCorrect ? 1 : 0) : (existing.todayCorrect || 0) + (isCorrect ? 1 : 0)
-      existing.updatedAt = new Date().toISOString()
-    } else {
-      localStats.push({
-        openid,
-        totalQuestions: 1,
-        correctCount: isCorrect ? 1 : 0,
-        todayQuestions: 1,
-        todayCorrect: isCorrect ? 1 : 0,
-        updatedAt: new Date().toISOString()
-      })
-    }
-    localSet('local_user_stats', localStats)
   }
 
   /**
@@ -386,7 +354,7 @@ export const useQuizStore = defineStore('quiz', () => {
   }
 
   async function updateStats(openid: string): Promise<boolean> {
-    // 本地模式已由 saveResultsLocalForSingle 处理，云不可用时跳过
+    // 本地模式已由 statsStore.saveLocalAndSyncCloud 处理，云不可用时跳过
     if (!isCloudAvailable() || openid.startsWith('local_')) return false
 
     try {
