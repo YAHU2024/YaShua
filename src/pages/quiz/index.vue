@@ -18,52 +18,45 @@
           :show-result="showResult"
           @select="handleSelect"
         />
+
+        <!-- AI 解析区域 -->
+        <view v-if="showResult" class="ai-analysis-section">
+          <!-- AI 解析按钮 -->
+          <view v-if="!aiAnalysisText && !aiLoading" class="ai-analyze-area">
+            <view class="ai-analysis-title">✨ AI 解析</view>
+            <BaseButton
+              variant="outline"
+              size="md"
+              class="ai-analyze-btn"
+              @click="requestAIAnalysis"
+            >点击获取 AI 解析</BaseButton>
+          </view>
+
+          <!-- AI 加载中 -->
+          <view v-if="aiLoading" class="ai-loading">
+            <view class="ai-loading-spinner">
+              <view
+                v-for="i in 3"
+                :key="i"
+                class="spinner-dot"
+                :style="{ animationDelay: `${(i - 1) * 0.15}s` }"
+              />
+            </view>
+            <text class="ai-loading-text">AI 解析中...</text>
+          </view>
+
+          <!-- AI 解析结果 -->
+          <view v-if="aiAnalysisText" class="ai-result-area">
+            <view class="ai-analysis-title">✨ AI 解析</view>
+            <view class="ai-analysis-content">{{ aiAnalysisText }}</view>
+          </view>
+
+          <!-- AI 错误提示 -->
+          <view v-if="aiError" class="ai-error">
+            <text class="ai-error-text">{{ aiError }}</text>
+          </view>
+        </view>
       </scroll-view>
-
-      <view v-if="showResult" class="result-tip">
-        <text :class="isCorrect ? 'correct-tip' : 'wrong-tip'">
-          {{ isCorrect ? '✓ 回答正确！' : '✗ 回答错误' }}
-        </text>
-      </view>
-
-      <!-- AI 解析区域 -->
-      <view v-if="showResult" class="ai-analysis-section">
-        <!-- AI 解析按钮 -->
-        <BaseButton
-          v-if="!aiAnalysisText && !aiLoading"
-          variant="outline"
-          size="md"
-          class="ai-analyze-btn"
-          @click="requestAIAnalysis"
-        >✨ AI 解析</BaseButton>
-
-        <!-- AI 加载中动画 -->
-        <view v-if="aiLoading" class="ai-loading">
-          <view class="ai-loading-spinner">
-            <view
-              v-for="i in 3"
-              :key="i"
-              class="spinner-dot"
-              :style="{ animationDelay: `${(i - 1) * 0.15}s` }"
-            />
-          </view>
-          <text class="ai-loading-text">AI 解析中...</text>
-        </view>
-
-        <!-- AI 解析结果卡片 -->
-        <view v-if="aiAnalysisText" class="ai-result-card">
-          <view class="ai-result-header">
-            <text class="ai-result-icon">✨</text>
-            <text class="ai-result-title">AI 解析</text>
-          </view>
-          <view class="ai-result-content">{{ aiAnalysisText }}</view>
-        </view>
-
-        <!-- AI 错误提示 -->
-        <view v-if="aiError" class="ai-error">
-          <text class="ai-error-text">{{ aiError }}</text>
-        </view>
-      </view>
 
       <view class="action-bar">
         <BaseButton
@@ -184,7 +177,8 @@ import { useQuizStore } from '@/stores/quiz'
 import { useLibraryStore } from '@/stores/library'
 import { useWrongStore } from '@/stores/wrong'
 import { useUserStore } from '@/stores/user'
-import { ensureCloudReady } from '@/utils/cloud'
+import { ensureCloudReady, isCloudAvailable } from '@/utils/cloud'
+import { analyzeQuestion } from '@/utils/aiParser'
 import { getQuizProgress, clearQuizProgress } from '@/utils/storage'
 import { vibrateShort } from '@/utils/haptics'
 import type { Question, QuizProgress } from '@/types'
@@ -210,7 +204,7 @@ const aiLoading = ref(false)
 const aiAnalysisText = ref('')
 const aiError = ref('')
 const analyzingQuestionId = ref('')
-const AI_ANALYSIS_TIMEOUT = 30000 // 30 秒超时保护
+const AI_ANALYSIS_TIMEOUT = 50000 // 50 秒超时保护（需大于云函数重试总耗时 ~42s）
 
 const mode = ref<'sequence' | 'random' | 'wrong'>('sequence')
 const libraryId = ref('')
@@ -281,6 +275,11 @@ async function confirmAnswer() {
   confirming.value = true
   try {
     showResult.value = true
+    console.log('[quiz] showResult=true, AI section should render', {
+      aiLoading: aiLoading.value,
+      aiAnalysisText: aiAnalysisText.value,
+      aiError: aiError.value
+    })
     quizStore.recordSingleAnswer(isCorrect.value)
 
     // 触觉反馈
@@ -307,27 +306,36 @@ async function confirmAnswer() {
 async function requestAIAnalysis() {
   if (!currentQuestion.value || aiLoading.value) return
 
+  console.log('[quiz] AI 解析按钮被点击', {
+    questionId: currentQuestion.value._id,
+    isCloudAvailable: isCloudAvailable()
+  })
+
   const qid = currentQuestion.value._id || ''
   analyzingQuestionId.value = qid
   aiLoading.value = true
   aiError.value = ''
 
   try {
-    const { analyzeQuestion } = await import('@/utils/aiParser')
-    // 增加 30s 超时保护，防止 loading 无限旋转
-    const result = await Promise.race([
-      analyzeQuestion(
-        currentQuestion.value,
-        [...currentAnswers.value],
-        isCorrect.value
-      ),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('AI_ANALYSIS_TIMEOUT')), AI_ANALYSIS_TIMEOUT)
-      )
-    ])
-    // 守卫：丢弃切题后的过期响应
-    if (analyzingQuestionId.value !== qid) return
-    aiAnalysisText.value = result
+    // 超时保护：防止 loading 无限旋转
+    let timeoutId: ReturnType<typeof setTimeout> | undefined
+    try {
+      const result = await Promise.race([
+        analyzeQuestion(
+          currentQuestion.value,
+          [...currentAnswers.value],
+          isCorrect.value
+        ),
+        new Promise<never>((_, reject) => {
+          timeoutId = setTimeout(() => reject(new Error('AI_ANALYSIS_TIMEOUT')), AI_ANALYSIS_TIMEOUT)
+        })
+      ])
+      // 守卫：丢弃切题后的过期响应
+      if (analyzingQuestionId.value !== qid) return
+      aiAnalysisText.value = result
+    } finally {
+      if (timeoutId) clearTimeout(timeoutId)
+    }
   } catch (e: any) {
     if (analyzingQuestionId.value !== qid) return
     // 详细日志记录（控制台），友好提示（用户界面）
@@ -356,6 +364,7 @@ function prevQuestion() {
     showResult.value = false
     aiAnalysisText.value = ''
     aiError.value = ''
+    aiLoading.value = false // 修复：切题时重置 loading，防止旧请求残留导致卡死
   }
 }
 
@@ -365,6 +374,7 @@ function nextQuestion() {
     showResult.value = false
     aiAnalysisText.value = ''
     aiError.value = ''
+    aiLoading.value = false // 修复：切题时重置 loading，防止旧请求残留导致卡死
   }
 }
 
@@ -532,44 +542,39 @@ onUnload(() => {
 .question-scroll {
   flex: 1;
   height: 0;
-  padding-bottom: 160rpx;
+  padding-bottom: 220rpx; // 为固定 action-bar 留出足够空间（~196rpx）
 }
 
-.result-tip {
-  margin: $space-lg 0;
-  padding: $space-md;
-  border-radius: $radius-lg;
-  text-align: center;
-}
-
-.correct-tip {
-  color: var(--color-success);
-  font-weight: $font-weight-semibold;
-}
-
-.wrong-tip {
-  color: var(--color-error);
-  font-weight: $font-weight-semibold;
-}
-
-// ============ AI 解析区域 ============
+// ============ AI 解析区域（与 QuestionCard 解析区域同风格） ============
 .ai-analysis-section {
-  margin-bottom: $space-lg;
+  margin-top: $space-xl;
+  padding-top: $space-xl;
+  border-top: 1rpx solid var(--color-border-base);
+}
+
+.ai-analyze-area {
+  // 按钮态容器
+}
+
+.ai-analysis-title {
+  font-size: $font-size-base;
+  font-weight: $font-weight-semibold;
+  color: var(--color-primary);
+  margin-bottom: $space-sm;
 }
 
 .ai-analyze-btn {
   width: 100%;
 }
 
-// AI 加载动画（内联版 LoadingState）
+// AI 加载动画
 .ai-loading {
   display: flex;
   align-items: center;
   justify-content: center;
   padding: $space-lg;
-  background: var(--color-bg-card);
-  border-radius: $radius-lg;
-  box-shadow: var(--shadow-sm);
+  background: var(--color-bg-input);
+  border-radius: $radius-md;
 }
 
 .ai-loading-spinner {
@@ -596,40 +601,20 @@ onUnload(() => {
   color: var(--color-text-tertiary);
 }
 
-// AI 解析结果卡片
-.ai-result-card {
-  background: var(--color-bg-card);
-  border-radius: $radius-xl;
-  padding: $space-xl;
-  box-shadow: var(--shadow-md);
-  border-left: 6rpx solid var(--color-primary);
-  animation: modalScaleIn $duration-slow $ease-bounce;
+// AI 解析结果（与 .analysis-content 同风格）
+.ai-result-area {
+  // 结果容器
 }
 
-.ai-result-header {
-  display: flex;
-  align-items: center;
-  margin-bottom: $space-md;
-}
-
-.ai-result-icon {
-  font-size: $font-size-xl;
-  margin-right: $space-sm;
-}
-
-.ai-result-title {
-  font-size: $font-size-base;
-  font-weight: $font-weight-semibold;
-  color: var(--color-primary);
-}
-
-.ai-result-content {
+.ai-analysis-content {
   font-size: $font-size-md;
   color: var(--color-text-secondary);
   line-height: $line-height-relaxed;
   background: var(--color-bg-input);
   padding: $space-md;
   border-radius: $radius-md;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 // AI 错误提示

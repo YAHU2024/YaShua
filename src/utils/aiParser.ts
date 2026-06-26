@@ -26,7 +26,7 @@ const AI_ANALYSIS_PREFIX = 'local_ai_analysis_'
  * 使用 DJB2 算法（小程序环境下 crypto 不可用）
  */
 function hashQuestion(question: Question): string {
-  const str = `${question.content}|${(question.answer || []).join(',')}`
+  const str = `${question.content}|${(question.answer || []).join(',')}|${question.analysis || ''}`
   let hash = 5381
   for (let i = 0; i < str.length; i++) {
     hash = ((hash << 5) + hash) + str.charCodeAt(i)
@@ -84,6 +84,7 @@ export function saveCachedAnalysis(question: Question, analysis: string): void {
  */
 async function writeAnalysisToCloud(question: Question, analysis: string): Promise<void> {
   if (!question._id) return
+  if (!isCloudAvailable()) return // 修复：与 callFunction 保持一致的可用性检查
   try {
     // @ts-ignore uni.cloud 由 App.vue 初始化
     const db = uni.cloud.database()

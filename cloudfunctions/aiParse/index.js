@@ -310,7 +310,8 @@ ${existingAnalysis ? `【已有解析（参考）】${existingAnalysis}` : ''}
 3. 如果选项中有常见错误选项，简要说明其迷惑性
 4. 解析尽量精炼，控制在 200-500 字之间
 5. 使用中文输出，语气亲切友好
-6. 只输出纯文本解析内容，不要包含编号、markdown 标题等格式标记`
+6. 只输出纯文本解析内容，不要包含编号、markdown 标题等格式标记
+7. 不同段落之间请用换行符分隔，保证阅读体验`
 }
 
 /**
@@ -336,7 +337,7 @@ async function callDeepSeekAnalyze(question, userAnswer, isCorrect) {
           messages: [
             {
               role: 'system',
-              content: '你是一位专业且亲切的题目解析老师，擅长用通俗易懂的语言帮助学习者理解知识点。只输出纯文本解析，不要使用任何格式标记。'
+              content: '你是一位专业且亲切的题目解析老师，擅长用通俗易懂的语言帮助学习者理解知识点。只输出纯文本解析，不要使用任何格式标记。不同段落之间请用换行符分隔，保证阅读体验。'
             },
             {
               role: 'user',
@@ -351,7 +352,7 @@ async function callDeepSeekAnalyze(question, userAnswer, isCorrect) {
             'Authorization': `Bearer ${apiKey}`,
             'Content-Type': 'application/json'
           },
-          timeout: 30000
+          timeout: 20000
         }
       )
 
