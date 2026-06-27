@@ -1,4 +1,4 @@
-import type { Question, AIAnalysisCache } from '@/types'
+import type { Question, AIAnalysisCache, ProviderConfig } from '@/types'
 import { aiParseQuestions } from './fileParser'
 import { callFunction, isCloudAvailable } from './cloud'
 import { getItem, setItem } from './storage'
@@ -116,12 +116,16 @@ async function writeAnalysisToCloud(question: Question, analysis: string): Promi
 export async function analyzeQuestion(
   question: Question,
   userAnswer: string[],
-  isCorrect: boolean
+  isCorrect: boolean,
+  providerConfig?: ProviderConfig,
+  forceRegenerate = false
 ): Promise<string> {
-  // 1. 检查本地缓存
-  const cached = getCachedAnalysis(question)
-  if (cached) {
-    return cached
+  // 1. 检查本地缓存（强制重新生成时跳过）
+  if (!forceRegenerate) {
+    const cached = getCachedAnalysis(question)
+    if (cached) {
+      return cached
+    }
   }
 
   // 2. 检查云开发可用性
@@ -140,7 +144,8 @@ export async function analyzeQuestion(
       analysis: question.analysis || ''
     },
     userAnswer,
-    isCorrect
+    isCorrect,
+    providerConfig
   })
 
   if (result && result.success && result.data?.analysis) {

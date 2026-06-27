@@ -126,18 +126,6 @@
                 <view v-if="isParsing" class="parsing-status">
                   <LoadingState :text="parsingStatusText" />
                 </view>
-                <view v-if="!isParsing && parsedQuestions.length === 0 && uploadedFile" class="model-selector">
-                  <text class="selector-label">AI 模型：</text>
-                  <view class="selector-options">
-                    <text
-                      v-for="m in availableModels"
-                      :key="m.id"
-                      class="selector-option"
-                      :class="{ active: selectedModel === m.id }"
-                      @click="selectedModel = m.id"
-                    >{{ m.name }}</text>
-                  </view>
-                </view>
                 <view v-if="!isParsing && parsedQuestions.length === 0 && uploadedFile" class="parse-action">
                   <BaseButton variant="primary" size="md" block @click="parseWithAI">AI 智能解析</BaseButton>
                 </view>
@@ -153,18 +141,6 @@
                 />
                 <view v-if="isParsing" class="parsing-status">
                   <LoadingState :text="parsingStatusText" />
-                </view>
-                <view v-if="!isParsing && parsedQuestions.length === 0 && textContent.trim()" class="model-selector">
-                  <text class="selector-label">AI 模型：</text>
-                  <view class="selector-options">
-                    <text
-                      v-for="m in availableModels"
-                      :key="m.id"
-                      class="selector-option"
-                      :class="{ active: selectedModel === m.id }"
-                      @click="selectedModel = m.id"
-                    >{{ m.name }}</text>
-                  </view>
                 </view>
                 <view v-if="!isParsing && parsedQuestions.length === 0 && textContent.trim()" class="parse-action">
                   <BaseButton variant="primary" size="md" block @click="parseWithAI">AI 智能解析</BaseButton>
@@ -323,6 +299,7 @@ import LoadingState from '@/components/LoadingState.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import { useLibraryStore } from '@/stores/library'
 import { useUserStore } from '@/stores/user'
+import { useAiSettingsStore } from '@/stores/aiSettings'
 import { parseMarkdown } from '@/utils/parser'
 import { parseFileToQuestions, aiParseQuestions, getRecommendedTimeout } from '@/utils/fileParser'
 import { getLibraryEmoji } from '@/utils/libraryEmoji'
@@ -330,6 +307,7 @@ import type { Library, Question } from '@/types'
 
 const libraryStore = useLibraryStore()
 const userStore = useUserStore()
+const aiSettings = useAiSettingsStore()
 
 const showAddModal = ref(false)
 const editingLibrary = ref<Library | null>(null)
@@ -348,13 +326,6 @@ const textContent = ref('')
 const isParsing = ref(false)
 const parsingStatusText = ref('AI 正在解析题目...')
 const parsedQuestions = ref<Question[]>([])
-
-// AI 模型选择
-const selectedModel = ref('agnes')
-const availableModels = ref([
-  { id: 'agnes', name: 'Agnes' },
-  { id: 'deepseek', name: 'DeepSeek' }
-])
 
 // 单题编辑相关状态
 const showEditModal = ref(false)
@@ -512,7 +483,7 @@ async function parseWithAI() {
           uploadedFile.value.path,
           uploadedFile.value.name,
           onProgress,
-          selectedModel.value
+          aiSettings.getProviderConfig()
         ),
         new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error('AI 解析超时（5分钟），请检查网络后重试')), 300000)
@@ -537,7 +508,7 @@ async function parseWithAI() {
       const timeoutSec = Math.round(timeoutMs / 1000)
       const startTime = Date.now()
       const questions = await Promise.race([
-        aiParseQuestions(textContent.value, onProgress, selectedModel.value),
+        aiParseQuestions(textContent.value, onProgress, aiSettings.getProviderConfig()),
         new Promise<never>((_, reject) =>
           setTimeout(() => reject(new Error(`AI 解析超时（${timeoutSec}秒），请检查网络后重试`)), timeoutMs)
         )
@@ -1178,42 +1149,6 @@ async function saveLibrary() {
 
 .parse-action {
   margin-top: $space-md;
-}
-
-.model-selector {
-  display: flex;
-  align-items: center;
-  gap: $space-sm;
-  margin-top: $space-md;
-  padding: $space-sm $space-md;
-  background: var(--color-bg-card);
-  border-radius: $radius-md;
-}
-
-.selector-label {
-  font-size: $font-size-sm;
-  color: var(--color-text-secondary);
-  flex-shrink: 0;
-}
-
-.selector-options {
-  display: flex;
-  gap: $space-sm;
-}
-
-.selector-option {
-  padding: 12rpx 28rpx;
-  border-radius: $radius-md;
-  font-size: $font-size-sm;
-  color: var(--color-text-secondary);
-  background: var(--color-bg-hover);
-  border: 2rpx solid var(--color-border-light);
-
-  &.active {
-    background: var(--color-primary);
-    color: var(--color-text-inverse);
-    border-color: var(--color-primary);
-  }
 }
 
 .import-textarea {

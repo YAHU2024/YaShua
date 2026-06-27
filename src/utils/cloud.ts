@@ -41,12 +41,12 @@ export async function ensureCloudReady(): Promise<void> {
   console.warn('云开发初始化等待超时，继续执行（可能降级到本地模式）')
 }
 
-export async function callFunction(name: string, data?: Record<string, any>): Promise<any> {
+export async function callFunction(name: string, data?: Record<string, any>, timeoutMs?: number): Promise<any> {
   if (!isCloudAvailable()) {
     throw new Error('云开发不可用，请检查网络连接或小程序配置')
   }
 
-  return new Promise((resolve, reject) => {
+  const callPromise = new Promise<any>((resolve, reject) => {
     uni.cloud.callFunction({
       name,
       data: data || {},
@@ -59,6 +59,16 @@ export async function callFunction(name: string, data?: Record<string, any>): Pr
       }
     })
   })
+
+  // 客户端超时保护：防止前端无限等待
+  if (timeoutMs && timeoutMs > 0) {
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error(`云函数 ${name} 调用超时（${timeoutMs}ms）`)), timeoutMs)
+    })
+    return Promise.race([callPromise, timeoutPromise])
+  }
+
+  return callPromise
 }
 
 export async function login(): Promise<{ openid: string }> {

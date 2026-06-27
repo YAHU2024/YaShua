@@ -1,4 +1,4 @@
-import type { Question } from '@/types'
+import type { Question, ProviderConfig } from '@/types'
 import { callFunction, isCloudAvailable } from './cloud'
 import { parseDocxText, parseRichMarkdown, parseMarkdown } from './parser'
 
@@ -124,13 +124,13 @@ export async function extractFileText(fileID: string, fileName?: string): Promis
  * 调用云函数进行 AI 智能解析（客户端分段并行，避免单次云函数超时）
  * @param text 题库文本内容
  * @param onProgress 可选进度回调，报告已完成的段数和阶段
- * @param model 可选模型选择（如 'agnes'、'deepseek'），透传给云函数
+ * @param providerConfig 可选 Provider 配置（内置或自定义），透传给云函数
  * @returns 解析出的题目数组
  */
 export async function aiParseQuestions(
   text: string,
   onProgress?: (completed: number, total: number, stage?: string) => void,
-  model?: string
+  providerConfig?: ProviderConfig
 ): Promise<Question[]> {
   if (!isCloudAvailable()) {
     throw new Error('云开发不可用，AI 解析需要云函数支持。请确保云开发环境已开通并正确配置。')
@@ -141,7 +141,7 @@ export async function aiParseQuestions(
 
   // 短文本无需分段，直接调用（保持向后兼容）
   if (chunks.length === 1) {
-    const result = await callFunction('aiParse', { text, model })
+    const result = await callFunction('aiParse', { text, providerConfig })
     if (result.success && result.data) {
       return result.data.questions as Question[]
     }
@@ -180,7 +180,7 @@ export async function aiParseQuestions(
           await new Promise(r => setTimeout(r, RETRY_DELAY_MS))
         }
         try {
-          const result = await callFunction('aiParse', { text: chunk, model })
+          const result = await callFunction('aiParse', { text: chunk, providerConfig })
           if (result.success && result.data?.questions?.length > 0) {
             const questions = result.data.questions as Question[]
             console.log(`[AI解析] 第 ${index + 1}/${chunks.length} 段完成，解析出 ${questions.length} 道题${attempt > 0 ? `（第 ${attempt} 次重试成功）` : ''}`)
@@ -248,14 +248,14 @@ export function getRecommendedTimeout(textLength: number): number {
  * @param filePath 本地文件路径
  * @param fileName 原始文件名
  * @param onProgress 可选进度回调，用于更新 UI 状态
- * @param model 可选 AI 模型选择
+ * @param providerConfig 可选 Provider 配置（内置或自定义），透传给云函数
  * @returns 解析出的题目数组
  */
 export async function parseFileToQuestions(
   filePath: string,
   fileName: string,
   onProgress?: (completed: number, total: number, stage?: string) => void,
-  model?: string
+  providerConfig?: ProviderConfig
 ): Promise<Question[]> {
   // === 分支 A：.md / .txt 文件 → 客户端本地读取 + 解析 ===
   const ext = fileName.split('.').pop()?.toLowerCase() || ''
@@ -317,7 +317,7 @@ export async function parseFileToQuestions(
   let aiError: Error | null = null
 
   try {
-    aiQuestions = await aiParseQuestions(text, onProgress, model)
+    aiQuestions = await aiParseQuestions(text, onProgress, providerConfig)
     if (aiQuestions.length > 0) {
       return aiQuestions
     }

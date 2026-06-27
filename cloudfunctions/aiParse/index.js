@@ -28,6 +28,64 @@ const MAX_CHUNK_CHARS = 6000 // 每段最大字符数（小段并行更快，降
 const MAX_RETRY = 1 // 单个 Provider API 调用失败重试次数
 
 /**
+ * 解析客户端传入的 providerConfig，返回实际使用的 primary/fallback provider
+ *
+ * providerConfig 格式：
+ *   内置模型：{ id: 'agnes' }
+ *   自定义模型：{ custom: { providerId, apiUrl, model } }  — apiKey 从云DB读取
+ *
+ * @param {object} wxContext - 微信云函数上下文（含 OPENID）
+ * @param {object} providerConfig - 客户端传入的 provider 配置
+ * @returns {{ primary: object, fallback: object }}
+ */
+async function resolveProvider(wxContext, providerConfig) {
+  if (!providerConfig) {
+    return { primary: PRIMARY_PROVIDER, fallback: FALLBACK_PROVIDER }
+  }
+
+  // 内置模型
+  if (providerConfig.id && PROVIDERS[providerConfig.id]) {
+    const primary = PROVIDERS[providerConfig.id]
+    const fallback = Object.values(PROVIDERS).find(p => p !== primary) || FALLBACK_PROVIDER
+    return { primary, fallback }
+  }
+
+  // 自定义模型：从云DB读取 apiKey
+  if (providerConfig.custom) {
+    const { providerId, apiUrl, model } = providerConfig.custom
+    const openid = wxContext.OPENID
+
+    try {
+      const db = cloud.database()
+      const { data } = await db.collection('user_ai_providers')
+        .where({ openid, providerId })
+        .limit(1)
+        .get()
+
+      if (!data.length || !data[0].apiKey) {
+        console.warn(`自定义 Provider ${providerId} 未找到或无 API Key，降级到内置模型`)
+        return { primary: PRIMARY_PROVIDER, fallback: FALLBACK_PROVIDER }
+      }
+
+      const doc = data[0]
+      const primary = {
+        name: `自定义(${doc.name || model})`,
+        apiUrl,
+        model,
+        apiKey: doc.apiKey  // 从云DB读取，不返回给客户端
+      }
+      // 降级到内置默认模型
+      return { primary, fallback: PRIMARY_PROVIDER }
+    } catch (e) {
+      console.error(`读取自定义 Provider ${providerId} 失败:`, e.message)
+      return { primary: PRIMARY_PROVIDER, fallback: FALLBACK_PROVIDER }
+    }
+  }
+
+  return { primary: PRIMARY_PROVIDER, fallback: FALLBACK_PROVIDER }
+}
+
+/**
  * 构建解析 Prompt
  */
 function buildPrompt(text) {
@@ -63,10 +121,14 @@ ${text}
  * @returns {string} 模型返回的 content 文本
  */
 async function callLLM(provider, messages, { temperature, max_tokens, timeout }) {
-  const apiKey = process.env[provider.apiKeyEnv]
+  // 自定义 Provider 直接携带 apiKey；内置 Provider 从环境变量读取
+  const apiKey = provider.apiKey || process.env[provider.apiKeyEnv]
 
   if (!apiKey) {
-    throw new Error(`未配置 ${provider.apiKeyEnv} 环境变量，请在微信云开发控制台 → 云函数 aiParse → 环境变量中设置`)
+    if (provider.apiKeyEnv) {
+      throw new Error(`未配置 ${provider.apiKeyEnv} 环境变量，请在微信云开发控制台 → 云函数 aiParse → 环境变量中设置`)
+    }
+    throw new Error(`Provider "${provider.name}" 未提供 API Key`)
   }
 
   let lastError = null
@@ -79,7 +141,10 @@ async function callLLM(provider, messages, { temperature, max_tokens, timeout })
           model: provider.model,
           messages,
           temperature,
-          max_tokens
+          max_tokens,
+          top_p: 0.9,
+          frequency_penalty: 0.5,
+          presence_penalty: 0.3
         },
         {
           headers: {
@@ -145,17 +210,11 @@ async function callLLMWithFallback(messages, options, primaryProvider, fallbackP
 /**
  * 调用 LLM API 解析题库文本
  * @param {string} text - 题库文本
- * @param {string} [modelKey] - 可选模型标识（如 'agnes'、'deepseek'），默认使用 PRIMARY_PROVIDER
+ * @param {object} wxContext - 微信云函数上下文（含 OPENID）
+ * @param {object} [providerConfig] - 客户端传入的 provider 配置
  */
-async function callDeepSeekAPI(text, modelKey) {
-  // 根据客户端指定的模型选择主/备 Provider
-  let primaryProvider = PRIMARY_PROVIDER
-  let fallbackProvider = FALLBACK_PROVIDER
-  if (modelKey && PROVIDERS[modelKey]) {
-    primaryProvider = PROVIDERS[modelKey]
-    // 降级到另一个模型
-    fallbackProvider = Object.values(PROVIDERS).find(p => p !== primaryProvider) || FALLBACK_PROVIDER
-  }
+async function callDeepSeekAPI(text, wxContext, providerConfig) {
+  const { primary: primaryProvider, fallback: fallbackProvider } = await resolveProvider(wxContext, providerConfig)
 
   const messages = [
     {
@@ -174,7 +233,9 @@ async function callDeepSeekAPI(text, modelKey) {
     timeout: 55000
   }, primaryProvider, fallbackProvider)
 
-  const result = parseAIResponse(content)
+  // 后处理：检测并清理重复输出
+  const cleanedContent = deduplicateOutput(content)
+  const result = parseAIResponse(cleanedContent)
   if (result.length === 0) {
     console.warn(`[${provider.name}] AI 返回内容无法解析出题目，原始响应前 500 字符:`, content.substring(0, 500))
   }
@@ -351,6 +412,60 @@ function splitTextIntoChunks(text) {
 }
 
 /**
+ * 检测并清理 LLM 输出中的重复内容
+ * 小模型容易陷入重复循环（如 "D选项D选项D选项..."），此函数检测连续重复的句子/段落并截断
+ * @param {string} text - LLM 原始输出
+ * @returns {string} 清理后的文本
+ */
+function deduplicateOutput(text) {
+  if (!text || text.length < 50) return text
+
+  const lines = text.split('\n')
+  const cleaned = []
+  let repeatCount = 0
+  const MAX_REPEAT = 2 // 允许最多 2 行相似内容
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim()
+    if (!line) {
+      cleaned.push(lines[i])
+      repeatCount = 0
+      continue
+    }
+
+    // 检查是否与上一行高度相似（>70% 字符重叠）
+    if (cleaned.length > 0) {
+      const prevLine = cleaned[cleaned.length - 1].trim()
+      if (prevLine && lineSimilarity(line, prevLine) > 0.7) {
+        repeatCount++
+        if (repeatCount >= MAX_REPEAT) {
+          console.warn(`检测到重复输出，已截断（第 ${i + 1} 行）`)
+          break
+        }
+      } else {
+        repeatCount = 0
+      }
+    }
+
+    cleaned.push(lines[i])
+  }
+
+  return cleaned.join('\n').trim()
+}
+
+/**
+ * 计算两个字符串的相似度（基于字符集合的 Jaccard 系数）
+ */
+function lineSimilarity(a, b) {
+  if (!a || !b) return 0
+  const setA = new Set(a)
+  const setB = new Set(b)
+  const intersection = new Set([...setA].filter(x => setB.has(x)))
+  const union = new Set([...setA, ...setB])
+  return intersection.size / union.size
+}
+
+/**
  * 构建单题分析 Prompt（结合用户作答情况）
  */
 function buildAnalyzePrompt(question, userAnswer, isCorrect) {
@@ -381,13 +496,20 @@ ${existingAnalysis ? `【已有解析（参考）】${existingAnalysis}` : ''}
 4. 解析尽量精炼，控制在 200-500 字之间
 5. 使用中文输出，语气亲切友好
 6. 只输出纯文本解析内容，不要包含编号、markdown 标题等格式标记
-7. 不同段落之间请用换行符分隔，保证阅读体验`
+7. 不同段落之间请用换行符分隔，保证阅读体验
+8. 严禁重复输出相同或相似的句子，每句话只说一次，保持内容简洁不啰嗦`
 }
 
 /**
- * 调用 LLM API 生成单题分析（agnes 优先，deepseek 降级）
+ * 调用 LLM API 生成单题分析
+ * @param {object} question - 题目对象
+ * @param {Array} userAnswer - 用户答案
+ * @param {boolean} isCorrect - 是否答对
+ * @param {object} wxContext - 微信云函数上下文
+ * @param {object} [providerConfig] - 客户端传入的 provider 配置
  */
-async function callDeepSeekAnalyze(question, userAnswer, isCorrect) {
+async function callDeepSeekAnalyze(question, userAnswer, isCorrect, wxContext, providerConfig) {
+  const { primary: primaryProvider, fallback: fallbackProvider } = await resolveProvider(wxContext, providerConfig)
   const prompt = buildAnalyzePrompt(question, userAnswer, isCorrect)
 
   const messages = [
@@ -402,19 +524,21 @@ async function callDeepSeekAnalyze(question, userAnswer, isCorrect) {
   ]
 
   const { content } = await callLLMWithFallback(messages, {
-    temperature: 0.3,
+    temperature: 0.1,
     max_tokens: 2000,
-    timeout: 20000
-  })
+    timeout: 15000
+  }, primaryProvider, fallbackProvider)
 
-  return content?.trim() || ''
+  // 后处理：检测并清理重复输出
+  const cleaned = deduplicateOutput(content?.trim() || '')
+  return cleaned
 }
 
 /**
  * 处理单题 AI 解析请求
  */
-async function handleAnalyze(event) {
-  const { question, userAnswer, isCorrect } = event
+async function handleAnalyze(event, wxContext) {
+  const { question, userAnswer, isCorrect, providerConfig } = event
 
   if (!question || !question.content) {
     console.warn('handleAnalyze: 缺少题目信息', { hasQuestion: !!question, hasContent: !!question?.content })
@@ -422,7 +546,7 @@ async function handleAnalyze(event) {
   }
 
   try {
-    const analysis = await callDeepSeekAnalyze(question, userAnswer, isCorrect)
+    const analysis = await callDeepSeekAnalyze(question, userAnswer, isCorrect, wxContext, providerConfig)
 
     if (!analysis) {
       console.warn('handleAnalyze: AI 返回空解析')
@@ -453,10 +577,12 @@ async function handleAnalyze(event) {
 }
 
 exports.main = async (event, context) => {
+  const wxContext = cloud.getWXContext()
+
   try {
     const { action } = event
 
-    // 列出可用模型
+    // 列出内置模型
     if (action === 'listModels') {
       return {
         success: true,
@@ -470,13 +596,145 @@ exports.main = async (event, context) => {
       }
     }
 
-    // 单题分析模式（答题页 AI 解析）
-    if (action === 'analyze') {
-      return await handleAnalyze(event)
+    // ============ 自定义 Provider CRUD ============
+
+    // 获取用户的自定义 Provider 列表（不返回 apiKey 明文）
+    if (action === 'getProviderConfigs') {
+      const db = cloud.database()
+      const openid = wxContext.OPENID
+      const { data } = await db.collection('user_ai_providers')
+        .where({ openid })
+        .orderBy('createdAt', 'asc')
+        .get()
+
+      return {
+        success: true,
+        data: {
+          providers: data.map(d => ({
+            id: d.providerId,
+            name: d.name,
+            apiUrl: d.apiUrl,
+            model: d.model,
+            hasApiKey: !!d.apiKey
+          }))
+        }
+      }
     }
 
-    // 原有批量解析模式
-    const { text, model } = event
+    // 保存/更新自定义 Provider 配置（含 API Key）
+    if (action === 'saveProviderConfig') {
+      const { providerId, name, apiUrl, model, apiKey } = event
+      const openid = wxContext.OPENID
+
+      if (!providerId || !name || !apiUrl || !model) {
+        return { success: false, message: '缺少必填字段（providerId, name, apiUrl, model）' }
+      }
+      // 新增时必须提供 apiKey；更新时可选
+      if (!apiKey) {
+        // 检查是否已存在（更新场景）
+        const db = cloud.database()
+        const { data: existing } = await db.collection('user_ai_providers')
+          .where({ openid, providerId })
+          .limit(1)
+          .get()
+        if (!existing.length) {
+          return { success: false, message: '新增 Provider 必须提供 API Key' }
+        }
+        // 更新（保留原 apiKey）
+        await db.collection('user_ai_providers').doc(existing[0]._id).update({
+          data: { name, apiUrl, model, updatedAt: new Date() }
+        })
+        return { success: true, message: 'Provider 更新成功' }
+      }
+
+      // upsert：存在则更新（含 apiKey），不存在则插入
+      const db = cloud.database()
+      const { data: existing } = await db.collection('user_ai_providers')
+        .where({ openid, providerId })
+        .limit(1)
+        .get()
+
+      if (existing.length) {
+        await db.collection('user_ai_providers').doc(existing[0]._id).update({
+          data: { name, apiUrl, model, apiKey, updatedAt: new Date() }
+        })
+      } else {
+        await db.collection('user_ai_providers').add({
+          data: { openid, providerId, name, apiUrl, model, apiKey, createdAt: new Date(), updatedAt: new Date() }
+        })
+      }
+
+      return { success: true, message: 'Provider 保存成功' }
+    }
+
+    // 删除自定义 Provider
+    if (action === 'deleteProviderConfig') {
+      const { providerId } = event
+      const openid = wxContext.OPENID
+
+      if (!providerId) {
+        return { success: false, message: '缺少 providerId' }
+      }
+
+      const db = cloud.database()
+      await db.collection('user_ai_providers')
+        .where({ openid, providerId })
+        .remove()
+
+      return { success: true, message: 'Provider 已删除' }
+    }
+
+    // 测试自定义 Provider 连通性（不经过数据库，直接用客户端传入的参数）
+    if (action === 'testProvider') {
+      const { apiUrl, model, apiKey } = event
+
+      if (!apiUrl || !model || !apiKey) {
+        return { success: false, message: '请填写完整的 API 端点、模型和 API Key' }
+      }
+
+      try {
+        const content = await callLLM(
+          { name: '测试', apiUrl, model, apiKey },
+          [{ role: 'user', content: 'hi' }],
+          { temperature: 0, max_tokens: 10, timeout: 15000 }
+        )
+        return {
+          success: true,
+          message: '连接成功，模型响应正常',
+          data: { response: content?.substring(0, 100) }
+        }
+      } catch (e) {
+        const status = e.response?.status
+        const detail = e.response?.data?.error?.message || e.message
+        let userMsg
+        if (status === 401 || status === 403) {
+          userMsg = 'API Key 无效或已过期'
+        } else if (status === 404) {
+          userMsg = 'API 端点不存在，请检查 URL 是否正确'
+        } else if (status === 400) {
+          userMsg = '请求被拒绝，请检查模型名称是否正确'
+        } else if (status === 429) {
+          userMsg = 'API Key 有效，但请求被限流'
+        } else if (status >= 500) {
+          userMsg = `服务端错误（${status}），请稍后重试`
+        } else if (e.code === 'ECONNABORTED' || (e.message && e.message.includes('timeout'))) {
+          userMsg = '连接超时，请检查 API 端点是否正确'
+        } else {
+          userMsg = `连接失败：${detail}`
+        }
+        return { success: false, message: userMsg, data: { detail } }
+      }
+    }
+
+    // ============ AI 解析 ============
+
+    // 单题分析模式（答题页 AI 解析）
+    if (action === 'analyze') {
+      return await handleAnalyze(event, wxContext)
+    }
+
+    // 批量解析模式
+    const { text, providerConfig } = event
 
     if (!text || typeof text !== 'string') {
       return { success: false, message: '缺少文本内容' }
@@ -495,9 +753,9 @@ exports.main = async (event, context) => {
     const totalStartTime = Date.now()
 
     if (chunks.length === 1) {
-      // 单段：直接调用（保持原有错误处理）
+      // 单段：直接调用
       try {
-        const questions = await callDeepSeekAPI(chunks[0], model)
+        const questions = await callDeepSeekAPI(chunks[0], wxContext, providerConfig)
         allQuestions.push(...questions)
       } catch (e) {
         console.error('AI 解析失败', e.message)
@@ -508,11 +766,11 @@ exports.main = async (event, context) => {
         }
       }
     } else {
-      // 多段：并行调用以大幅缩短耗时
+      // 多段：并行调用
       console.log(`并行解析 ${chunks.length} 段，总长度 ${trimmedText.length} 字符`)
       const chunkResults = await Promise.allSettled(
         chunks.map((chunk, i) =>
-          callDeepSeekAPI(chunk, model).then(questions => {
+          callDeepSeekAPI(chunk, wxContext, providerConfig).then(questions => {
             console.log(`第 ${i + 1}/${chunks.length} 段完成，解析 ${questions.length} 题，耗时 ${Date.now() - totalStartTime}ms`)
             return questions
           })

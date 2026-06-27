@@ -2,6 +2,7 @@
 import { onLaunch, onShow, onHide } from '@dcloudio/uni-app'
 import { useUserStore } from '@/stores/user'
 import { useThemeStore } from '@/stores/theme'
+import { useAiSettingsStore } from '@/stores/aiSettings'
 import { markCloudInitialized } from '@/utils/cloud'
 
 onLaunch(async () => {
@@ -27,6 +28,10 @@ onLaunch(async () => {
 
   const userStore = useUserStore()
   await userStore.doLogin()
+
+  // 初始化 AI 设置（加载自定义 Provider 列表）
+  const aiSettingsStore = useAiSettingsStore()
+  await aiSettingsStore.init()
 })
 
 onShow(() => {})

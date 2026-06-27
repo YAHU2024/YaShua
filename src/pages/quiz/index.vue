@@ -21,17 +21,6 @@
 
         <!-- AI 解析区域 -->
         <view v-if="showResult" class="ai-analysis-section">
-          <!-- AI 解析按钮 -->
-          <view v-if="!aiAnalysisText && !aiLoading" class="ai-analyze-area">
-            <view class="ai-analysis-title">✨ AI 解析</view>
-            <BaseButton
-              variant="outline"
-              size="md"
-              class="ai-analyze-btn"
-              @click="requestAIAnalysis"
-            >点击获取 AI 解析</BaseButton>
-          </view>
-
           <!-- AI 加载中 -->
           <view v-if="aiLoading" class="ai-loading">
             <view class="ai-loading-spinner">
@@ -42,12 +31,33 @@
                 :style="{ animationDelay: `${(i - 1) * 0.15}s` }"
               />
             </view>
-            <text class="ai-loading-text">AI 解析中...</text>
+            <text class="ai-loading-text">{{ aiAnalysisText ? '重新生成中...' : 'AI 解析中...' }}</text>
+          </view>
+
+          <!-- AI 解析按钮（首次请求） -->
+          <view v-else-if="!aiAnalysisText" class="ai-analyze-area">
+            <view class="ai-analysis-title">✨ AI 解析</view>
+            <BaseButton
+              variant="outline"
+              size="md"
+              class="ai-analyze-btn"
+              @click="requestAIAnalysis"
+            >点击获取 AI 解析</BaseButton>
           </view>
 
           <!-- AI 解析结果 -->
-          <view v-if="aiAnalysisText" class="ai-result-area">
-            <view class="ai-analysis-title">✨ AI 解析</view>
+          <view v-else class="ai-result-area">
+            <view class="ai-analysis-title-row">
+              <text class="ai-analysis-title">✨ AI 解析</text>
+              <view
+                class="ai-regenerate-btn"
+                :class="{ disabled: aiLoading }"
+                @click="regenerateAIAnalysis"
+              >
+                <text class="ai-regenerate-icon">↻</text>
+                <text class="ai-regenerate-text">重新生成</text>
+              </view>
+            </view>
             <view class="ai-analysis-content">{{ aiAnalysisText }}</view>
           </view>
 
@@ -177,6 +187,7 @@ import { useQuizStore } from '@/stores/quiz'
 import { useLibraryStore } from '@/stores/library'
 import { useWrongStore } from '@/stores/wrong'
 import { useUserStore } from '@/stores/user'
+import { useAiSettingsStore } from '@/stores/aiSettings'
 import { ensureCloudReady, isCloudAvailable } from '@/utils/cloud'
 import { analyzeQuestion } from '@/utils/aiParser'
 import { getQuizProgress, clearQuizProgress } from '@/utils/storage'
@@ -187,6 +198,7 @@ const quizStore = useQuizStore()
 const libraryStore = useLibraryStore()
 const wrongStore = useWrongStore()
 const userStore = useUserStore()
+const aiSettings = useAiSettingsStore()
 
 const isLoading = ref(true)
 const showResult = ref(false)
@@ -324,7 +336,8 @@ async function requestAIAnalysis() {
         analyzeQuestion(
           currentQuestion.value,
           [...currentAnswers.value],
-          isCorrect.value
+          isCorrect.value,
+          aiSettings.getProviderConfig()
         ),
         new Promise<never>((_, reject) => {
           timeoutId = setTimeout(() => reject(new Error('AI_ANALYSIS_TIMEOUT')), AI_ANALYSIS_TIMEOUT)
@@ -345,6 +358,50 @@ async function requestAIAnalysis() {
       message: e?.message || e?.errMsg || 'unknown'
     })
     // 适配微信错误对象（errMsg）+ 超时判断
+    const errMsg = e?.errMsg || e?.message || ''
+    if (errMsg.includes('AI_ANALYSIS_TIMEOUT') || errMsg.includes('timeout') || errMsg.includes('超时')) {
+      aiError.value = 'AI 解析超时，请稍后重试'
+    } else if (errMsg.includes('云开发不可用') || errMsg.includes('网络')) {
+      aiError.value = '网络连接异常，请检查网络后重试'
+    } else {
+      aiError.value = 'AI 解析暂时不可用，请稍后重试'
+    }
+  } finally {
+    aiLoading.value = false
+  }
+}
+
+async function regenerateAIAnalysis() {
+  if (!currentQuestion.value || aiLoading.value) return
+
+  const qid = currentQuestion.value._id || ''
+  analyzingQuestionId.value = qid
+  aiLoading.value = true
+  aiError.value = ''
+
+  try {
+    let timeoutId: ReturnType<typeof setTimeout> | undefined
+    try {
+      const result = await Promise.race([
+        analyzeQuestion(
+          currentQuestion.value,
+          [...currentAnswers.value],
+          isCorrect.value,
+          aiSettings.getProviderConfig(),
+          true // forceRegenerate: 跳过缓存，强制重新生成
+        ),
+        new Promise<never>((_, reject) => {
+          timeoutId = setTimeout(() => reject(new Error('AI_ANALYSIS_TIMEOUT')), AI_ANALYSIS_TIMEOUT)
+        })
+      ])
+      if (analyzingQuestionId.value !== qid) return
+      aiAnalysisText.value = result
+    } finally {
+      if (timeoutId) clearTimeout(timeoutId)
+    }
+  } catch (e: any) {
+    if (analyzingQuestionId.value !== qid) return
+    console.error('AI 重新生成失败', { questionId: qid, error: e })
     const errMsg = e?.errMsg || e?.message || ''
     if (errMsg.includes('AI_ANALYSIS_TIMEOUT') || errMsg.includes('timeout') || errMsg.includes('超时')) {
       aiError.value = 'AI 解析超时，请稍后重试'
@@ -556,11 +613,41 @@ onUnload(() => {
   // 按钮态容器
 }
 
+.ai-analysis-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: $space-sm;
+}
+
 .ai-analysis-title {
   font-size: $font-size-base;
   font-weight: $font-weight-semibold;
   color: var(--color-primary);
-  margin-bottom: $space-sm;
+}
+
+.ai-regenerate-btn {
+  display: flex;
+  align-items: center;
+  gap: 4rpx;
+  padding: 6rpx 16rpx;
+  border-radius: $radius-sm;
+  background: var(--color-bg-hover);
+
+  &.disabled {
+    opacity: 0.4;
+    pointer-events: none;
+  }
+}
+
+.ai-regenerate-icon {
+  font-size: $font-size-base;
+  color: var(--color-text-tertiary);
+}
+
+.ai-regenerate-text {
+  font-size: $font-size-xs;
+  color: var(--color-text-tertiary);
 }
 
 .ai-analyze-btn {

@@ -92,3 +92,17 @@ export interface StatsState {
   todayQuestions: number
   todayCorrect: number
 }
+
+/** 自定义 AI Provider（客户端视图，不含 apiKey） */
+export interface CustomProvider {
+  id: string
+  name: string
+  apiUrl: string
+  model: string
+  hasApiKey?: boolean
+}
+
+/** 传给云函数的 Provider 配置（内置 or 自定义） */
+export type ProviderConfig =
+  | { id: string }                              // 内置模型：agnes / deepseek
+  | { custom: { providerId: string; apiUrl: string; model: string } }  // 自定义模型（apiKey 由云函数从 DB 读取）
