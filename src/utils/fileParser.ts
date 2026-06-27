@@ -1,6 +1,6 @@
 import type { Question, ProviderConfig } from '@/types'
 import { callFunction, isCloudAvailable } from './cloud'
-import { parseDocxText, parseRichMarkdown, parseMarkdown } from './parser'
+import { parseDocxText, parseRichMarkdown, parseMarkdown, parseExportDoc, parseXlsxStructured, parseBeiDouDocx, extractHtmlFromDoc } from './parser'
 
 /**
  * 客户端直接读取本地文本文件内容（仅微信小程序环境）
@@ -34,6 +34,33 @@ function readLocalTextFile(filePath: string): Promise<string> {
           } catch (_) {
             reject(err)
           }
+        }
+      })
+    } else {
+      reject(new Error('当前环境不支持本地文件读取'))
+    }
+  })
+}
+
+/**
+ * 客户端直接读取本地二进制文件内容（仅微信小程序环境）
+ * 用于 .doc 文件在本地提取 HTML 文本，避免上传到云函数
+ */
+function readLocalBinaryFile(filePath: string): Promise<ArrayBuffer> {
+  return new Promise((resolve, reject) => {
+    if (typeof wx !== 'undefined' && wx.getFileSystemManager) {
+      const fs = wx.getFileSystemManager()
+      fs.readFile({
+        filePath,
+        success: (res: any) => {
+          if (res.data) {
+            resolve(res.data as ArrayBuffer)
+          } else {
+            reject(new Error('文件内容为空'))
+          }
+        },
+        fail: (err: any) => {
+          reject(err)
         }
       })
     } else {
@@ -373,7 +400,33 @@ export async function parseFileToQuestions(
     }
   }
 
-  // === 分支 B：云函数流程（.docx/.xlsx 或文本文件本地解析失败的兜底） ===
+  // === 分支 A2：.doc 文件 → 客户端本地读取二进制 + 提取 HTML 文本 + 本地解析 ===
+  if (ext === 'doc' && !localText) {
+    try {
+      const buffer = await readLocalBinaryFile(filePath)
+      const htmlText = extractHtmlFromDoc(buffer)
+      if (htmlText && htmlText.trim()) {
+        localText = htmlText
+        // 优先尝试 parseExportDoc（专为导出格式设计）
+        const docQ = parseExportDoc(htmlText)
+        if (docQ.length > 0) {
+          console.log(`本地解析 .doc 成功，共 ${docQ.length} 道题`)
+          return docQ
+        }
+        // 也尝试通用解析器
+        const localQ = tryLocalParseAll(htmlText)
+        if (localQ) {
+          console.log(`本地解析 .doc 成功（通用解析器），共 ${localQ.length} 道题`)
+          return localQ
+        }
+        console.warn('.doc 本地解析无结果，使用提取文本进行 AI 解析')
+      }
+    } catch (e) {
+      console.warn('客户端读取 .doc 文件失败，回退到云函数流程:', (e as Error).message)
+    }
+  }
+
+  // === 分支 B：云函数流程（.docx/.xlsx/.doc 或文本文件本地解析失败的兜底） ===
   let text: string
 
   if (localText && localText.trim()) {
@@ -404,7 +457,17 @@ export async function parseFileToQuestions(
   // 3. 通知 UI：正在本地解析
   onProgress?.(0, 1, 'parsing_local')
 
-  // 4. 本地解析优先（三种格式依次尝试）
+  // 4. xlsx 文件优先尝试结构化解析（云函数已将表格转为 ===SHEET: 格式）
+  if (ext === 'xlsx') {
+    const xlsxQ = parseXlsxStructured(text)
+    if (xlsxQ.length > 0) {
+      console.log(`xlsx 结构化解析成功，共 ${xlsxQ.length} 道题（跳过 AI 解析）`)
+      setCachedFileQuestions(fileCacheKey, xlsxQ)
+      return xlsxQ
+    }
+  }
+
+  // 5. 通用本地解析（三种格式依次尝试）
   const localQuestions = tryLocalParseAll(text)
   if (localQuestions) {
     console.log(`本地解析成功，共 ${localQuestions.length} 道题（跳过 AI 解析）`)
@@ -414,7 +477,7 @@ export async function parseFileToQuestions(
 
   console.log('本地解析无结果，回退到 AI 智能解析')
 
-  // 5. AI 解析兜底
+  // 6. AI 解析兜底
   let aiQuestions: Question[] = []
   let aiError: Error | null = null
 
@@ -430,7 +493,7 @@ export async function parseFileToQuestions(
     console.warn('AI 解析失败:', aiError.message)
   }
 
-  // 6. 全部失败
+  // 7. 全部失败
   throw aiError || new Error('未能从文件中解析出题目，请检查文件格式')
 }
 
@@ -442,7 +505,19 @@ function tryLocalParseAll(text: string): Question[] | null {
   const docxQ = parseDocxText(text)
   if (docxQ.length > 0) return docxQ
 
-  // 其次 parseRichMarkdown（## N. 题目 + **题型** 格式）
+  // 其次 parseExportDoc（在线考试系统导出的 .doc 格式）
+  const exportDocQ = parseExportDoc(text)
+  if (exportDocQ.length > 0) return exportDocQ
+
+  // 表格导出 DOCX 格式（题号独占一行 + 【答案】标记）
+  const beidouQ = parseBeiDouDocx(text)
+  if (beidouQ.length > 0) return beidouQ
+
+  // xlsx 结构化文本格式
+  const xlsxQ = parseXlsxStructured(text)
+  if (xlsxQ.length > 0) return xlsxQ
+
+  // parseRichMarkdown（## N. 题目 + **题型** 格式）
   const richQ = parseRichMarkdown(text)
   if (richQ.length > 0) return richQ
 

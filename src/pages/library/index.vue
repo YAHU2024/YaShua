@@ -111,7 +111,7 @@
                 <view v-if="!uploadedFile" class="file-upload-area" @click="chooseFile">
                   <text class="upload-icon">📁</text>
                   <text class="upload-text">点击选择文件</text>
-                  <text class="upload-hint">支持 .txt .md .docx .xlsx</text>
+                  <text class="upload-hint">支持 .txt .md .doc .docx .xlsx</text>
                   <text class="upload-hint">文件大小限制 10MB</text>
                 </view>
                 <view v-else class="file-selected">
@@ -436,7 +436,7 @@ function chooseFile() {
   wx.chooseMessageFile({
     count: 1,
     type: 'file',
-    extension: ['txt', 'md', 'docx', 'xlsx'],
+    extension: ['txt', 'md', 'doc', 'docx', 'xlsx'],
     success: (res: any) => {
       const file = res.tempFiles[0]
       // 检查文件大小（10MB）

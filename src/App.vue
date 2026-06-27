@@ -45,10 +45,7 @@ onHide(() => {})
 @import '@/styles/global.scss';
 
 page {
-  background-color: var(--color-bg-page);
-  color: var(--color-text-primary);
   font-family: $font-family-base;
-  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 view, text {

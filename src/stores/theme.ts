@@ -1,10 +1,22 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 
 export type ThemeMode = 'light' | 'dark'
 export type UserPreference = 'light' | 'dark' | 'system'
 
 const STORAGE_KEY = 'theme-preference'
+
+// tabBar 主题色（与 theme.json 保持一致）
+const TAB_BAR_LIGHT = {
+  color: '#999999',
+  selectedColor: '#4A47A3',
+  backgroundColor: '#ffffff'
+}
+const TAB_BAR_DARK = {
+  color: '#808080',
+  selectedColor: '#7B78D2',
+  backgroundColor: '#1E1E1E'
+}
 
 export const useThemeStore = defineStore('theme', () => {
   // 用户偏好（'system' = 跟随系统）
@@ -38,6 +50,10 @@ export const useThemeStore = defineStore('theme', () => {
 
     // 监听系统主题变化
     listenSystemChanges()
+
+    // 同步 tabBar 样式（theme.json 仅响应系统级主题变化，手动切换需 API 更新）
+    syncTabBarStyle()
+    watch(isDark, syncTabBarStyle)
   }
 
   function detectSystemDarkMode() {
@@ -60,6 +76,16 @@ export const useThemeStore = defineStore('theme', () => {
       }
     } catch {
       // 不支持时静默降级
+    }
+  }
+
+  /** 根据当前 isDark 动态更新 tabBar 样式 */
+  function syncTabBarStyle() {
+    try {
+      const style = isDark.value ? TAB_BAR_DARK : TAB_BAR_LIGHT
+      uni.setTabBarStyle(style)
+    } catch {
+      // tabBar 不存在时静默降级（如非 tabBar 页面）
     }
   }
 

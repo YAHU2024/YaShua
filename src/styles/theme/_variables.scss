@@ -97,7 +97,10 @@
 }
 
 // ============ 浅色默认值 ============
-page {
+// 同时定义在 page 和 .theme-root 上：
+// - page 选择器用于 WeChat 原生 @media 机制
+// - .theme-root 选择器用于 ThemeWrapper class 切换机制（修复 tabBar 页面跟随系统失效 & 手动切换失效）
+page, .theme-root {
   // 品牌色
   --color-primary: #{$color-primary};
   --color-primary-dark: #{$color-primary-dark};
@@ -188,13 +191,13 @@ page {
 
 // ============ 深色模式覆盖 — 方式一：跟随系统 ============
 @media (prefers-color-scheme: dark) {
-  page:not(.theme-light) {
+  page:not(.theme-light), .theme-root:not(.theme-light) {
     @include dark-mode-overrides;
   }
 }
 
 // ============ 深色模式覆盖 — 方式二：手动切换 class ============
-page.theme-dark {
+page.theme-dark, .theme-root.theme-dark {
   @include dark-mode-overrides;
 }
 
