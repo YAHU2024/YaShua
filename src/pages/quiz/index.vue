@@ -512,7 +512,15 @@ async function loadQuestionsForMode() {
     const questions = wrongDetails.map(w => w.question)
     quizStore.initQuiz(questions, 'wrong')
   } else if (libraryId.value) {
-    const questions = await libraryStore.getQuestions(libraryId.value)
+    const questions = await libraryStore.getQuestions(libraryId.value, (cloudQuestions) => {
+      // 后台云同步完成，题目数量有变化 → 热更新
+      console.log('[quiz] 云端题目已更新，热替换题目列表')
+      quizStore.questions = cloudQuestions
+      quizStore.answers = {}
+      quizStore.currentIndex = 0
+      quizStore.saveProgress()
+      uni.showToast({ title: '题库已更新', icon: 'none' })
+    })
     if (questions.length === 0) {
       const lib = libraryStore.libraries.find(l => l._id === libraryId.value)
       if (lib && lib.totalQuestions > 0) {

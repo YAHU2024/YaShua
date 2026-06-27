@@ -279,7 +279,66 @@ export const useLibraryStore = defineStore('library', () => {
     }
   }
 
-  async function getQuestions(libraryId: string): Promise<Question[]> {
+  /**
+   * 后台静默从云端同步题目，若数据有变化则更新本地缓存并回调通知
+   * 不阻塞主流程，失败时静默忽略
+   */
+  async function syncFromCloud(
+    libraryId: string,
+    localCount: number,
+    onRefresh: (questions: Question[]) => void
+  ): Promise<void> {
+    try {
+      const db = uni.cloud.database()
+      const countResult = await db.collection('questions').where({ libraryId }).count()
+      const total = countResult.total
+
+      // 题目数量相同 → 大概率无变化，跳过拉取
+      if (total === localCount) return
+
+      if (total === 0) return
+
+      // 并行分批拉取
+      const MAX_LIMIT = 20
+      const batchCount = Math.ceil(total / MAX_LIMIT)
+      const batchPromises = Array.from({ length: batchCount }, (_, i) =>
+        db.collection('questions').where({ libraryId })
+          .skip(i * MAX_LIMIT).limit(MAX_LIMIT).get()
+      )
+      const batchResults = await Promise.all(batchPromises)
+      const cloudQuestions: Question[] = []
+      for (const result of batchResults) {
+        cloudQuestions.push(...(result.data as Question[]))
+      }
+
+      if (cloudQuestions.length > 0 && cloudQuestions.length !== localCount) {
+        // 更新本地缓存
+        const questionsMap = getLocalQuestions()
+        questionsMap[libraryId] = cloudQuestions
+        saveLocalQuestions(questionsMap)
+        // 通知调用方热更新
+        onRefresh(cloudQuestions)
+        console.log(`[library] 后台同步完成，题目数 ${localCount} → ${cloudQuestions.length}`)
+      }
+    } catch (e) {
+      console.warn('[library] 后台云同步失败，继续使用本地缓存', e)
+    }
+  }
+
+  async function getQuestions(libraryId: string, onCloudRefresh?: (questions: Question[]) => void): Promise<Question[]> {
+    // 本地优先：有缓存时立即返回，后台静默同步云端最新数据
+    const localQuestions = getLocalQuestions()[libraryId]
+    const hasLocal = localQuestions && localQuestions.length > 0
+
+    if (hasLocal) {
+      // 有本地缓存 → 立即返回，后台异步检查云端更新
+      if (isCloudAvailable() && onCloudRefresh) {
+        syncFromCloud(libraryId, localQuestions.length, onCloudRefresh)
+      }
+      return localQuestions
+    }
+
+    // 无本地缓存 → 从云端拉取
     if (isCloudAvailable()) {
       try {
         const db = uni.cloud.database()
@@ -289,12 +348,6 @@ export const useLibraryStore = defineStore('library', () => {
         const total = countResult.total
 
         if (total === 0) {
-          // 云端空结果时，合并本地缓存
-          const localQuestions = getLocalQuestions()[libraryId]
-          if (localQuestions && localQuestions.length > 0) {
-            console.log(`云端无题目，使用本地缓存 ${localQuestions.length} 道题`)
-            return localQuestions
-          }
           return []
         }
 
@@ -311,22 +364,13 @@ export const useLibraryStore = defineStore('library', () => {
           allQuestions.push(...(result.data as Question[]))
         }
 
-        // 云端空结果时，合并本地缓存（云端可能因审核等问题导入失败，但本地有题目）
-        if (allQuestions.length === 0) {
-          const localQuestions = getLocalQuestions()[libraryId]
-          if (localQuestions && localQuestions.length > 0) {
-            console.log(`云端无题目，使用本地缓存 ${localQuestions.length} 道题`)
-            return localQuestions
-          }
-        }
-
-        // 同步到本地缓存（仅当有新数据时才覆盖，保留已有本地缓存作为降级方案）
+        // 同步到本地缓存
         if (allQuestions.length > 0) {
           const questionsMap = getLocalQuestions()
           questionsMap[libraryId] = allQuestions
           saveLocalQuestions(questionsMap)
         } else {
-          console.warn(`[library] 题库 ${libraryId} 云端无题目，保留本地缓存`)
+          console.warn(`[library] 题库 ${libraryId} 云端无题目`)
         }
         return allQuestions
       } catch (e) {
@@ -335,8 +379,7 @@ export const useLibraryStore = defineStore('library', () => {
     }
 
     // 本地降级
-    const questionsMap = getLocalQuestions()
-    return questionsMap[libraryId] || []
+    return localQuestions || []
   }
 
   function setCurrentLibrary(library: Library | null) {
