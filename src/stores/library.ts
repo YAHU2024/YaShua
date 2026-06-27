@@ -193,9 +193,9 @@ export const useLibraryStore = defineStore('library', () => {
             openid
           })
 
-          // 任何失败都自动用 skipSafetyCheck 重试一次
-          if (!chunkResult.success) {
-            console.warn(`分片${Math.floor(i / MAX_PER_CALL) + 1}首次导入失败(code=${chunkResult.code || '无'})，用 skipSafetyCheck 重试:`, chunkResult.message)
+          // 仅当内容安全检测导致的失败才用 skipSafetyCheck 重试一次
+          if (!chunkResult.success && chunkResult.code === 'CONTENT_NOT_SAFE') {
+            console.warn(`分片${Math.floor(i / MAX_PER_CALL) + 1}内容安全检测未通过，用 skipSafetyCheck 重试:`, chunkResult.message)
             chunkResult = await callFunction('importQuestions', {
               libraryId,
               questions: chunk,

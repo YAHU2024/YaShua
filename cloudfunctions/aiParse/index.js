@@ -116,30 +116,47 @@ async function callLLM(provider, messages, { temperature, max_tokens, timeout })
 
 /**
  * 带降级的 LLM 调用：先尝试主模型，失败后自动降级到备选模型
+ * @param {Array} messages - OpenAI 格式消息数组
+ * @param {object} options - { temperature, max_tokens, timeout }
+ * @param {object} [primaryProvider] - 可选主模型，默认 PRIMARY_PROVIDER
+ * @param {object} [fallbackProvider] - 可选降级模型，默认 FALLBACK_PROVIDER
  */
-async function callLLMWithFallback(messages, options) {
+async function callLLMWithFallback(messages, options, primaryProvider, fallbackProvider) {
+  const primary = primaryProvider || PRIMARY_PROVIDER
+  const fallback = fallbackProvider || FALLBACK_PROVIDER
   try {
-    const content = await callLLM(PRIMARY_PROVIDER, messages, options)
-    console.log(`[${PRIMARY_PROVIDER.name}] 调用成功`)
-    return { content, provider: PRIMARY_PROVIDER }
+    const content = await callLLM(primary, messages, options)
+    console.log(`[${primary.name}] 调用成功`)
+    return { content, provider: primary }
   } catch (primaryError) {
-    console.warn(`[${PRIMARY_PROVIDER.name}] 全部重试失败，降级到 [${FALLBACK_PROVIDER.name}]`)
+    console.warn(`[${primary.name}] 全部重试失败，降级到 [${fallback.name}]`)
     try {
-      const content = await callLLM(FALLBACK_PROVIDER, messages, options)
-      console.log(`[${FALLBACK_PROVIDER.name}] 降级调用成功`)
-      return { content, provider: FALLBACK_PROVIDER }
+      const content = await callLLM(fallback, messages, options)
+      console.log(`[${fallback.name}] 降级调用成功`)
+      return { content, provider: fallback }
     } catch (fallbackError) {
       // 两个 provider 都失败，抛出原始错误（主模型的）
-      console.error(`[${FALLBACK_PROVIDER.name}] 降级也失败:`, fallbackError.message)
+      console.error(`[${fallback.name}] 降级也失败:`, fallbackError.message)
       throw primaryError
     }
   }
 }
 
 /**
- * 调用 LLM API 解析题库文本（agnes 优先，deepseek 降级）
+ * 调用 LLM API 解析题库文本
+ * @param {string} text - 题库文本
+ * @param {string} [modelKey] - 可选模型标识（如 'agnes'、'deepseek'），默认使用 PRIMARY_PROVIDER
  */
-async function callDeepSeekAPI(text) {
+async function callDeepSeekAPI(text, modelKey) {
+  // 根据客户端指定的模型选择主/备 Provider
+  let primaryProvider = PRIMARY_PROVIDER
+  let fallbackProvider = FALLBACK_PROVIDER
+  if (modelKey && PROVIDERS[modelKey]) {
+    primaryProvider = PROVIDERS[modelKey]
+    // 降级到另一个模型
+    fallbackProvider = Object.values(PROVIDERS).find(p => p !== primaryProvider) || FALLBACK_PROVIDER
+  }
+
   const messages = [
     {
       role: 'system',
@@ -155,7 +172,7 @@ async function callDeepSeekAPI(text) {
     temperature: 0.1,
     max_tokens: 16000,
     timeout: 55000
-  })
+  }, primaryProvider, fallbackProvider)
 
   const result = parseAIResponse(content)
   if (result.length === 0) {
@@ -439,13 +456,27 @@ exports.main = async (event, context) => {
   try {
     const { action } = event
 
+    // 列出可用模型
+    if (action === 'listModels') {
+      return {
+        success: true,
+        data: {
+          models: Object.entries(PROVIDERS).map(([key, p]) => ({
+            id: key,
+            name: p.name,
+            model: p.model
+          }))
+        }
+      }
+    }
+
     // 单题分析模式（答题页 AI 解析）
     if (action === 'analyze') {
       return await handleAnalyze(event)
     }
 
     // 原有批量解析模式
-    const { text } = event
+    const { text, model } = event
 
     if (!text || typeof text !== 'string') {
       return { success: false, message: '缺少文本内容' }
@@ -466,7 +497,7 @@ exports.main = async (event, context) => {
     if (chunks.length === 1) {
       // 单段：直接调用（保持原有错误处理）
       try {
-        const questions = await callDeepSeekAPI(chunks[0])
+        const questions = await callDeepSeekAPI(chunks[0], model)
         allQuestions.push(...questions)
       } catch (e) {
         console.error('AI 解析失败', e.message)
@@ -481,7 +512,7 @@ exports.main = async (event, context) => {
       console.log(`并行解析 ${chunks.length} 段，总长度 ${trimmedText.length} 字符`)
       const chunkResults = await Promise.allSettled(
         chunks.map((chunk, i) =>
-          callDeepSeekAPI(chunk).then(questions => {
+          callDeepSeekAPI(chunk, model).then(questions => {
             console.log(`第 ${i + 1}/${chunks.length} 段完成，解析 ${questions.length} 题，耗时 ${Date.now() - totalStartTime}ms`)
             return questions
           })

@@ -50,8 +50,14 @@ async function batchInsertQuestions(questions, libraryId, openid) {
       })
     })
     
-    const results = await Promise.all(operations)
-    importedCount += results.filter(r => r._id).length
+    const results = await Promise.allSettled(operations)
+    for (const r of results) {
+      if (r.status === 'fulfilled' && r.value._id) {
+        importedCount++
+      } else {
+        console.warn('单题插入失败:', r.status === 'rejected' ? r.reason?.message : '无_id')
+      }
+    }
   }
   
   await db.collection('libraries').doc(libraryId).update({

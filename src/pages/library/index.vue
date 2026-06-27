@@ -124,7 +124,19 @@
                   </view>
                 </view>
                 <view v-if="isParsing" class="parsing-status">
-                  <LoadingState text="AI 正在解析题目..." />
+                  <LoadingState :text="parsingStatusText" />
+                </view>
+                <view v-if="!isParsing && parsedQuestions.length === 0 && uploadedFile" class="model-selector">
+                  <text class="selector-label">AI 模型：</text>
+                  <view class="selector-options">
+                    <text
+                      v-for="m in availableModels"
+                      :key="m.id"
+                      class="selector-option"
+                      :class="{ active: selectedModel === m.id }"
+                      @click="selectedModel = m.id"
+                    >{{ m.name }}</text>
+                  </view>
                 </view>
                 <view v-if="!isParsing && parsedQuestions.length === 0 && uploadedFile" class="parse-action">
                   <BaseButton variant="primary" size="md" block @click="parseWithAI">AI 智能解析</BaseButton>
@@ -140,7 +152,19 @@
                   placeholder-style="white-space: pre-line;"
                 />
                 <view v-if="isParsing" class="parsing-status">
-                  <LoadingState text="AI 正在解析题目..." />
+                  <LoadingState :text="parsingStatusText" />
+                </view>
+                <view v-if="!isParsing && parsedQuestions.length === 0 && textContent.trim()" class="model-selector">
+                  <text class="selector-label">AI 模型：</text>
+                  <view class="selector-options">
+                    <text
+                      v-for="m in availableModels"
+                      :key="m.id"
+                      class="selector-option"
+                      :class="{ active: selectedModel === m.id }"
+                      @click="selectedModel = m.id"
+                    >{{ m.name }}</text>
+                  </view>
                 </view>
                 <view v-if="!isParsing && parsedQuestions.length === 0 && textContent.trim()" class="parse-action">
                   <BaseButton variant="primary" size="md" block @click="parseWithAI">AI 智能解析</BaseButton>
@@ -300,7 +324,7 @@ import EmptyState from '@/components/EmptyState.vue'
 import { useLibraryStore } from '@/stores/library'
 import { useUserStore } from '@/stores/user'
 import { parseMarkdown } from '@/utils/parser'
-import { parseFileToQuestions, aiParseQuestions } from '@/utils/fileParser'
+import { parseFileToQuestions, aiParseQuestions, getRecommendedTimeout } from '@/utils/fileParser'
 import { getLibraryEmoji } from '@/utils/libraryEmoji'
 import type { Library, Question } from '@/types'
 
@@ -324,6 +348,13 @@ const textContent = ref('')
 const isParsing = ref(false)
 const parsingStatusText = ref('AI 正在解析题目...')
 const parsedQuestions = ref<Question[]>([])
+
+// AI 模型选择
+const selectedModel = ref('agnes')
+const availableModels = ref([
+  { id: 'agnes', name: 'Agnes' },
+  { id: 'deepseek', name: 'DeepSeek' }
+])
 
 // 单题编辑相关状态
 const showEditModal = ref(false)
@@ -463,20 +494,54 @@ async function parseWithAI() {
   try {
     if (importMode.value === 'file' && uploadedFile.value) {
       parsingStatusText.value = '正在上传文件并提取文本...'
-      // 文件模式：上传 → 提取文本 → AI 解析
-      const questions = await parseFileToQuestions(
-        uploadedFile.value.path,
-        uploadedFile.value.name
-      )
+
+      // 进度回调：根据阶段更新文案
+      const onProgress = (completed: number, total: number, stage?: string) => {
+        if (stage === 'extracting') {
+          parsingStatusText.value = '正在提取文件文本...'
+        } else if (stage === 'parsing_local') {
+          parsingStatusText.value = '正在本地解析题目...'
+        } else if (stage === 'ai_parsing') {
+          parsingStatusText.value = `AI 解析中（${completed}/${total} 段）...`
+        }
+      }
+
+      // 文件模式：上传 → 提取文本 → 本地解析 → AI 兜底（超时 5 分钟）
+      const questions = await Promise.race([
+        parseFileToQuestions(
+          uploadedFile.value.path,
+          uploadedFile.value.name,
+          onProgress,
+          selectedModel.value
+        ),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('AI 解析超时（5分钟），请检查网络后重试')), 300000)
+        )
+      ])
       parsedQuestions.value = questions
     } else if (importMode.value === 'text' && textContent.value.trim()) {
       const textLen = textContent.value.length
       parsingStatusText.value = textLen > 10000
         ? `AI 正在解析题目...（文本 ${textLen} 字，预计 10-20 秒）`
         : 'AI 正在解析题目...'
-      // 文本模式：直接 AI 解析
+
+      // 进度回调：根据阶段更新文案
+      const onProgress = (completed: number, total: number, stage?: string) => {
+        if (stage === 'ai_parsing') {
+          parsingStatusText.value = `AI 解析中（${completed}/${total} 段）...`
+        }
+      }
+
+      // 文本模式：AI 分段解析（动态超时，基于文本长度计算分段数和重试开销）
+      const timeoutMs = getRecommendedTimeout(textLen)
+      const timeoutSec = Math.round(timeoutMs / 1000)
       const startTime = Date.now()
-      const questions = await aiParseQuestions(textContent.value)
+      const questions = await Promise.race([
+        aiParseQuestions(textContent.value, onProgress, selectedModel.value),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error(`AI 解析超时（${timeoutSec}秒），请检查网络后重试`)), timeoutMs)
+        )
+      ])
       console.log(`[AI解析] 文本模式完成，${questions.length} 题，耗时 ${Date.now() - startTime}ms`)
       parsedQuestions.value = questions
     } else {
@@ -614,7 +679,28 @@ async function saveLibrary() {
       questions = parsedQuestions.value
     }
 
-    if (questions.length > 0 && userStore.openid) {
+    // file/text 模式下，有内容但未解析出题目时，提示用户先解析
+    if (questions.length === 0 && !editingLibrary.value) {
+      if (importMode.value === 'file' && uploadedFile.value) {
+        uni.showToast({ title: '请先点击「AI 智能解析」解析文件', icon: 'none' })
+        return
+      }
+      if (importMode.value === 'text' && textContent.value.trim()) {
+        uni.showToast({ title: '请先点击「AI 智能解析」解析文本', icon: 'none' })
+        return
+      }
+    }
+
+    if (questions.length > 0) {
+      if (!userStore.openid) {
+        // openid 未获取时提示用户，不创建空题库
+        uni.showModal({
+          title: '登录未完成',
+          content: '当前登录状态异常，题目无法保存。请退出小程序重新进入后再试。',
+          showCancel: false
+        })
+        return
+      }
       const result = await libraryStore.importQuestions(libraryId, questions, userStore.openid)
       if (result.success) {
         uni.showToast({ title: `创建成功，导入 ${result.data.importedCount} 道题`, icon: 'success' })
@@ -1092,6 +1178,42 @@ async function saveLibrary() {
 
 .parse-action {
   margin-top: $space-md;
+}
+
+.model-selector {
+  display: flex;
+  align-items: center;
+  gap: $space-sm;
+  margin-top: $space-md;
+  padding: $space-sm $space-md;
+  background: var(--color-bg-card);
+  border-radius: $radius-md;
+}
+
+.selector-label {
+  font-size: $font-size-sm;
+  color: var(--color-text-secondary);
+  flex-shrink: 0;
+}
+
+.selector-options {
+  display: flex;
+  gap: $space-sm;
+}
+
+.selector-option {
+  padding: 12rpx 28rpx;
+  border-radius: $radius-md;
+  font-size: $font-size-sm;
+  color: var(--color-text-secondary);
+  background: var(--color-bg-hover);
+  border: 2rpx solid var(--color-border-light);
+
+  &.active {
+    background: var(--color-primary);
+    color: var(--color-text-inverse);
+    border-color: var(--color-primary);
+  }
 }
 
 .import-textarea {
