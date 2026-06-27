@@ -51,6 +51,88 @@ const MAX_RETRY_PER_CHUNK = 2
 // 重试间隔（毫秒），等待云函数资源释放
 const RETRY_DELAY_MS = 2000
 
+// ============ AI 解析缓存（减少重复 LLM 调用，节省 token） ============
+
+const AI_FILE_CACHE_PREFIX = 'ai_file_cache_'
+const AI_PARSE_CACHE_PREFIX = 'ai_parse_cache_'
+
+/**
+ * DJB2 字符串哈希（与 aiParser.ts 的 hashQuestion 保持一致的算法）
+ */
+function hashText(text: string): string {
+  let hash = 5381
+  for (let i = 0; i < text.length; i++) {
+    hash = ((hash << 5) + hash) + text.charCodeAt(i)
+    hash = hash & hash
+  }
+  return Math.abs(hash).toString(36)
+}
+
+/**
+ * 将 ProviderConfig 序列化为缓存 key 的一部分
+ * 不同 Provider 的解析结果可能不同，需要隔离缓存
+ */
+function providerCacheKey(providerConfig?: ProviderConfig): string {
+  if (!providerConfig) return 'default'
+  if ('id' in providerConfig) return `builtin_${providerConfig.id}`
+  return `custom_${providerConfig.custom.model}`
+}
+
+/**
+ * 文件级缓存：整个文本 → 完整题目列表
+ */
+function getFileCacheKey(text: string, providerConfig?: ProviderConfig): string {
+  return `${AI_FILE_CACHE_PREFIX}${providerCacheKey(providerConfig)}_${hashText(text)}`
+}
+
+function getCachedFileQuestions(key: string): Question[] | null {
+  try {
+    const data = uni.getStorageSync(key)
+    if (!data) return null
+    const parsed = JSON.parse(data)
+    // 只返回非空结果（空数组表示解析失败，不应缓存）
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : null
+  } catch {
+    return null
+  }
+}
+
+function setCachedFileQuestions(key: string, questions: Question[]): void {
+  if (questions.length === 0) return
+  try {
+    uni.setStorageSync(key, JSON.stringify(questions))
+  } catch (e) {
+    console.error('保存文件级 AI 解析缓存失败', e)
+  }
+}
+
+/**
+ * 解析级缓存：文本 → 解析结果（aiParseQuestions 整包缓存）
+ */
+function getParseCacheKey(text: string, providerConfig?: ProviderConfig): string {
+  return `${AI_PARSE_CACHE_PREFIX}${providerCacheKey(providerConfig)}_${hashText(text)}`
+}
+
+function getCachedParseResult(key: string): Question[] | null {
+  try {
+    const data = uni.getStorageSync(key)
+    if (!data) return null
+    const parsed = JSON.parse(data)
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : null
+  } catch {
+    return null
+  }
+}
+
+function setCachedParseResult(key: string, questions: Question[]): void {
+  if (questions.length === 0) return
+  try {
+    uni.setStorageSync(key, JSON.stringify(questions))
+  } catch (e) {
+    console.error('保存 AI 解析缓存失败', e)
+  }
+}
+
 /**
  * 将长文本按段落边界拆分为多个块，每块不超过 maxChars 字符
  */
@@ -136,6 +218,14 @@ export async function aiParseQuestions(
     throw new Error('云开发不可用，AI 解析需要云函数支持。请确保云开发环境已开通并正确配置。')
   }
 
+  // 解析级缓存：相同文本 + 相同 Provider → 跳过所有 LLM 调用
+  const parseCacheKey = getParseCacheKey(text, providerConfig)
+  const cachedResult = getCachedParseResult(parseCacheKey)
+  if (cachedResult) {
+    console.log(`[缓存命中] 解析级缓存，共 ${cachedResult.length} 道题（跳过 LLM 调用）`)
+    return cachedResult
+  }
+
   const chunks = splitTextIntoChunks(text, CLIENT_CHUNK_SIZE)
   console.log(`[AI解析] 文本总长 ${text.length} 字符，拆分为 ${chunks.length} 段并行处理`)
 
@@ -143,7 +233,9 @@ export async function aiParseQuestions(
   if (chunks.length === 1) {
     const result = await callFunction('aiParse', { text, providerConfig })
     if (result.success && result.data) {
-      return result.data.questions as Question[]
+      const questions = result.data.questions as Question[]
+      setCachedParseResult(parseCacheKey, questions)
+      return questions
     }
     throw new Error(result.message || 'AI 解析失败')
   }
@@ -217,6 +309,7 @@ export async function aiParseQuestions(
     console.warn(`[AI解析] ${failedChunks}/${chunks.length} 段解析失败，已返回其余 ${allQuestions.length} 道题`)
   }
 
+  setCachedParseResult(parseCacheKey, allQuestions)
   return allQuestions
 }
 
@@ -300,6 +393,14 @@ export async function parseFileToQuestions(
     throw new Error('文件内容为空')
   }
 
+  // 文件级缓存：相同文本 + 相同 Provider → 直接返回缓存结果
+  const fileCacheKey = getFileCacheKey(text.trim(), providerConfig)
+  const fileCached = getCachedFileQuestions(fileCacheKey)
+  if (fileCached) {
+    console.log(`[缓存命中] 文件级缓存，共 ${fileCached.length} 道题（跳过全部解析）`)
+    return fileCached
+  }
+
   // 3. 通知 UI：正在本地解析
   onProgress?.(0, 1, 'parsing_local')
 
@@ -307,6 +408,7 @@ export async function parseFileToQuestions(
   const localQuestions = tryLocalParseAll(text)
   if (localQuestions) {
     console.log(`本地解析成功，共 ${localQuestions.length} 道题（跳过 AI 解析）`)
+    setCachedFileQuestions(fileCacheKey, localQuestions)
     return localQuestions
   }
 
@@ -319,6 +421,7 @@ export async function parseFileToQuestions(
   try {
     aiQuestions = await aiParseQuestions(text, onProgress, providerConfig)
     if (aiQuestions.length > 0) {
+      setCachedFileQuestions(fileCacheKey, aiQuestions)
       return aiQuestions
     }
     console.warn('AI 解析返回空结果')
