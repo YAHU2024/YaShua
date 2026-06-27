@@ -283,18 +283,32 @@ export const useLibraryStore = defineStore('library', () => {
     if (isCloudAvailable()) {
       try {
         const db = uni.cloud.database()
-        const MAX_LIMIT = 20
 
         // 先查总数
         const countResult = await db.collection('questions').where({ libraryId }).count()
         const total = countResult.total
-        let allQuestions: Question[] = []
 
-        // 分批获取（微信云开发每次最多返回20条）
-        for (let i = 0; i < total; i += MAX_LIMIT) {
-          const result = await db.collection('questions').where({ libraryId })
-            .skip(i).limit(MAX_LIMIT).get()
-          allQuestions = allQuestions.concat(result.data as Question[])
+        if (total === 0) {
+          // 云端空结果时，合并本地缓存
+          const localQuestions = getLocalQuestions()[libraryId]
+          if (localQuestions && localQuestions.length > 0) {
+            console.log(`云端无题目，使用本地缓存 ${localQuestions.length} 道题`)
+            return localQuestions
+          }
+          return []
+        }
+
+        // 并行分批获取（微信云开发每次最多返回20条）
+        const MAX_LIMIT = 20
+        const batchCount = Math.ceil(total / MAX_LIMIT)
+        const batchPromises = Array.from({ length: batchCount }, (_, i) =>
+          db.collection('questions').where({ libraryId })
+            .skip(i * MAX_LIMIT).limit(MAX_LIMIT).get()
+        )
+        const batchResults = await Promise.all(batchPromises)
+        const allQuestions: Question[] = []
+        for (const result of batchResults) {
+          allQuestions.push(...(result.data as Question[]))
         }
 
         // 云端空结果时，合并本地缓存（云端可能因审核等问题导入失败，但本地有题目）
