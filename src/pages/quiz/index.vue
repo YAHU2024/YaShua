@@ -189,7 +189,7 @@ import { useWrongStore } from '@/stores/wrong'
 import { useUserStore } from '@/stores/user'
 import { useAiSettingsStore } from '@/stores/aiSettings'
 import { ensureCloudReady, isCloudAvailable } from '@/utils/cloud'
-import { analyzeQuestion } from '@/utils/aiParser'
+import { analyzeQuestion, getCachedAnalysis } from '@/utils/aiParser'
 import { getQuizProgress, clearQuizProgress } from '@/utils/storage'
 import { vibrateShort } from '@/utils/haptics'
 import type { Question, QuizProgress } from '@/types'
@@ -415,13 +415,27 @@ async function regenerateAIAnalysis() {
   }
 }
 
+/**
+ * 切题后自动检查当前题目是否有已缓存的 AI 解析，有则直接展示
+ */
+function loadCachedAnalysis() {
+  if (!currentQuestion.value) return
+  const cached = getCachedAnalysis(currentQuestion.value)
+  if (cached) {
+    aiAnalysisText.value = cached
+    aiError.value = ''
+  } else {
+    aiAnalysisText.value = ''
+    aiError.value = ''
+  }
+}
+
 function prevQuestion() {
   if (quizStore.currentIndex > 0) {
     quizStore.prevQuestion()
     showResult.value = false
-    aiAnalysisText.value = ''
-    aiError.value = ''
-    aiLoading.value = false // 修复：切题时重置 loading，防止旧请求残留导致卡死
+    aiLoading.value = false
+    loadCachedAnalysis()
   }
 }
 
@@ -429,9 +443,8 @@ function nextQuestion() {
   if (quizStore.currentIndex < quizStore.totalQuestions() - 1) {
     quizStore.nextQuestion()
     showResult.value = false
-    aiAnalysisText.value = ''
-    aiError.value = ''
-    aiLoading.value = false // 修复：切题时重置 loading，防止旧请求残留导致卡死
+    aiLoading.value = false
+    loadCachedAnalysis()
   }
 }
 
@@ -515,6 +528,9 @@ async function loadQuestionsForMode() {
       const idx = quizStore.questions.findIndex(q => q._id === targetQuestionId.value)
       if (idx !== -1) quizStore.goToQuestion(idx)
     }
+
+    // 初始加载完成后，自动展示当前题目的缓存解析
+    loadCachedAnalysis()
   } else {
     errorMsg.value = '题库参数缺失'
   }
@@ -526,6 +542,8 @@ function handleResume() {
 
   quizStore.loadProgress(libraryId.value, mode.value)
   showResumeDialog.value = false
+  // 恢复进度后，自动展示当前题目的缓存解析
+  loadCachedAnalysis()
 }
 
 async function handleRestart() {
