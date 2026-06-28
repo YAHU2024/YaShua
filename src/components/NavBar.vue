@@ -64,6 +64,7 @@ function handleBack() {
 }
 
 .navbar-content {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -77,7 +78,6 @@ function handleBack() {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-left: -$space-sm;
 }
 
 .back-icon {
@@ -86,11 +86,13 @@ function handleBack() {
 }
 
 .navbar-title {
-  flex: 1;
-  text-align: center;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
   font-size: $font-size-xl;
   font-weight: $font-weight-bold;
   color: var(--color-text-primary);
+  white-space: nowrap;
 }
 
 .navbar-right {

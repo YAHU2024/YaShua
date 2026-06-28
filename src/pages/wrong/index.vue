@@ -22,12 +22,8 @@
             <text class="card-sub">{{ group.items.length }} 道错题</text>
           </view>
 
-          <!-- 右侧：Pill Badge 两段式胶囊 + 箭头 -->
+          <!-- 右侧：箭头 -->
           <view class="card-right">
-            <view v-if="group.totalQuestions > 0" class="pill-badge">
-              <text class="pill pill-wrong">{{ group.items.length }}错</text>
-              <text class="pill pill-total">{{ group.totalQuestions }}总</text>
-            </view>
             <text class="card-arrow">›</text>
           </view>
         </view>
@@ -206,49 +202,19 @@ function goDetail(group: WrongGroup) {
   line-height: 1;
 }
 
-// --- 右侧：Pill Badge + 箭头 ---
+// --- 右侧：箭头 ---
 .card-right {
   display: flex;
   align-items: center;
-  gap: 16rpx;
   flex-shrink: 0;
 }
 
-// ============ Pill Badge 两段式胶囊 ============
-.pill-badge {
-  display: inline-flex;
-  align-items: center;
-  border-radius: $radius-full;       // 整体胶囊圆角
-  overflow: hidden;
-  height: 40rpx;                     // 胶囊高度
-}
-
-.pill {
-  font-size: 20rpx;                  // 比 $font-size-xs 略小，精致感
-  line-height: 1;
-  padding: 0 14rpx;
-  height: 100%;
-  display: inline-flex;
-  align-items: center;
-  white-space: nowrap;
-  font-weight: $font-weight-medium;
-}
-
-.pill-wrong {
-  background: var(--color-error-bg);       // #fff2f0 浅红
-  color: var(--color-error);               // #ff4d4f
-}
-
-.pill-total {
-  background: #F0F0F3;               // 浅灰（与 cover 渐变起点同色系）
-  color: var(--color-text-subtitle);       // #8E8E93
-}
-
-// --- 箭头 ---
+// --- 箭头（放大并右移至原pill位置） ---
 .card-arrow {
-  font-size: 48rpx;
-  color: var(--color-text-disabled);       // #cccccc 灰色箭头
+  font-size: 56rpx;
+  color: var(--color-text-disabled);
   font-weight: 300;
   line-height: 1;
+  margin-left: 16rpx;
 }
 </style>

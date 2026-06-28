@@ -374,12 +374,20 @@ export const useLibraryStore = defineStore('library', () => {
         }
         return allQuestions
       } catch (e) {
-        console.error('云开发获取题目失败，使用本地数据', e)
+        console.error('云开发获取题目失败', e)
+        // 无本地缓存可降级 → 向上抛出让调用方展示错误状态+重试按钮
+        if (!localQuestions || localQuestions.length === 0) {
+          throw new Error('云端获取题目失败且无本地缓存')
+        }
       }
     }
 
-    // 本地降级
-    return localQuestions || []
+    // 本地降级（仅当有本地缓存时才能走到这里）
+    if (localQuestions && localQuestions.length > 0) {
+      return localQuestions
+    }
+    // 云不可用 + 无本地缓存 → 无法获取任何数据
+    throw new Error('云开发不可用且无本地缓存')
   }
 
   function setCurrentLibrary(library: Library | null) {

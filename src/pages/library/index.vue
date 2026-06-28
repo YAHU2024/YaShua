@@ -698,6 +698,11 @@ async function saveLibrary() {
 <style lang="scss" scoped>
 @import '@/styles/tokens/_index.scss';
 
+.form-input-template,
+.form-textarea-template {
+  max-width: 100%;
+}
+
 .page {
   min-height: 100vh;
   background: var(--color-bg-page);

@@ -23,7 +23,21 @@ export const useUserStore = defineStore('user', () => {
   const isLoggedIn = ref(false)
   const isLocalMode = ref(false) // 标记是否为本地模式
 
+  // Promise 级互斥锁：防止 App.vue onLaunch 和首页 onMounted 并发调用 doLogin
+  // 导致两次 uni.login() + 两次 callFunction('login') 同时执行
+  let loginPromise: Promise<boolean> | null = null
+
   async function doLogin() {
+    if (loginPromise) return loginPromise
+    loginPromise = _doLoginInternal()
+    try {
+      return await loginPromise
+    } finally {
+      loginPromise = null
+    }
+  }
+
+  async function _doLoginInternal(): Promise<boolean> {
     if (isCloudAvailable()) {
       try {
         const result = await login()

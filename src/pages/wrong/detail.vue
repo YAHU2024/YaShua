@@ -1,7 +1,7 @@
 <template>
   <ThemeWrapper>
   <view class="page">
-    <NavBar :title="libraryName" />
+    <NavBar title="错题详情" show-back />
 
     <LoadingState v-if="loading" text="加载错题..." />
 

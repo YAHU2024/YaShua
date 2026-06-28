@@ -522,10 +522,9 @@ async function loadQuestionsForMode() {
       uni.showToast({ title: '题库已更新', icon: 'none' })
     })
     if (questions.length === 0) {
-      const lib = libraryStore.libraries.find(l => l._id === libraryId.value)
-      if (lib && lib.totalQuestions > 0) {
-        errorMsg.value = '题目加载失败'
-      }
+      // 不再依赖 libraryStore.libraries（quiz 页从未调用 loadLibraries，libraries 永远为空）
+      // 新用户无本地缓存 + 云拉取失败时，直接展示错误状态 + 重试按钮
+      errorMsg.value = '题目加载失败，请重试'
     }
     quizStore.initQuiz(questions, mode.value)
     if (questions.length > 0) {
